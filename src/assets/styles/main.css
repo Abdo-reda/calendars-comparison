@@ -20,8 +20,7 @@
 }
 
 .main-container {
-  /* TODO: make it hidden */
-  overflow-x: auto; 
+  overflow-x: hidden; 
   position: relative;
   height: 250px;
   width: 100%;
@@ -52,8 +51,22 @@ h1 {
 }
 
 .days-container {
+  flex: 1 1 auto;
+}
+
+.recycle-container {
   display: flex;
-  column-gap: 12px;
+  flex-direction: column;
+  row-gap: 14px;
+}
+
+.date-container {
+  height: 50%;
+}
+
+.date-container-milady {
+  display: flex;
+  flex-direction: column-reverse;
 }
 
 .day-first-month {
@@ -117,11 +130,11 @@ h1 {
 }
 
 .month-title-milady {
-  top: 0px;
+  top: 10px;
 }
 
 .month-title-hijri {
-  bottom: 0px;
+  bottom: 10px;
 }
 
 .month-title-hover {

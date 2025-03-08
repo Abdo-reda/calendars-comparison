@@ -1,113 +1,108 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, reactive, ref, useTemplateRef } from 'vue';
 import { gsap } from "gsap";
-import { toHijri } from 'luxon-hijri';
-import { formatHijriDate } from 'luxon-hijri';
+import type { ICalendarDay, IDay } from './core/interfaces/dayInterface';
+import type { IRecycleScroller } from './core/interfaces/recycleScrollerInterface';
+import { createHijriDay, createMiladyDay, hijriPartsFormatter } from './core/utilities/dateUtil';
 
-//---- TODO
-//- start of week color? start of week and month different.
-//- tooltips when you hover over the day.
-
-interface IDay {
-  locale: string;
-  short: string;
-  month: string;
-  isStartOfMonth: boolean;
-  isStartOfWeek: boolean;
-}
-
-interface ICalendarDays {
-  days: IDay[],
-  hijriDays: IDay[]
-}
-
-// const dateFormatter = new Intl.DateTimeFormat('default', { month: 'long' });
+let scrollFlag = true;
 const daySize = 24;
 const dayGap = 12;
-const range = 512;
-const currentYear = ref(new Date().getUTCFullYear())
+const RANGE = 4096;
 const yearsSequence = gsap.timeline({ paused: true });
-const years = reactive([currentYear.value - 1, currentYear.value, currentYear.value + 1]);
-const activeMonth = ref<string | null>(null);
-const highlightWeek = ref<boolean>(false);
-const mainContainer = useTemplateRef('main-container');
+const recycleContainer = useTemplateRef<IRecycleScroller>('recycle-container');
 
+const currentYear = ref(new Date().getUTCFullYear())
+const activeMonth = ref<string | null>(null);
+
+const years = reactive([currentYear.value - 1, currentYear.value, currentYear.value + 1]);
+
+const scrollWidth = computed(() => days.value.length * (daySize + dayGap))
 const hijriYears = computed(() => {
   return years.map(y => {
     const currentYearDate = new Date(y, 0, 1);
-    return toHijri(currentYearDate)?.hy;
+    return hijriPartsFormatter.formatToParts(currentYearDate).find(part => part.type === 'year')!.value;
   })
 })
 
-const days = computed<ICalendarDays>(() => {
-  const yearDays: IDay[] = [];
-  const hijriYearDays: IDay[] = [];
+const days = computed<ICalendarDay[]>(() => {
+  const yearDays: ICalendarDay[] = [];
+
   for (const y of years) {
     const currentYearDate = new Date(y, 0, 1);
-    while (currentYearDate.getFullYear() === y) {
-      const hijriDate = toHijri(currentYearDate);
+    for (let day = 1; day <= daysInYear(y); day++) {
+      const miladyDay = createMiladyDay(currentYearDate);
+      const hijriDay = createHijriDay(currentYearDate); //createHijriDay(currentYearDate);
+
       yearDays.push({
-        locale: currentYearDate.toLocaleDateString(),
-        short: currentYearDate.toISOString().split('T')[0],
-        month: currentYearDate.toLocaleString('default', { month: 'long' }),
-        isStartOfMonth: currentYearDate.getDate() === 1,
-        isStartOfWeek: currentYearDate.getDay() === 0,
+        id: miladyDay.short,
+        miladyDay,
+        hijriDay,
       });
-      if (hijriDate) {
-        hijriYearDays.push({
-          locale: formatHijriDate(hijriDate, 'iYYYY-iMM-iDD'),
-          short: formatHijriDate(hijriDate, 'iYYYY-iMM-iDD'),
-          month: formatHijriDate(hijriDate, 'iMMMM'),
-          isStartOfMonth: hijriDate.hd === 1,
-          isStartOfWeek: currentYearDate.getDay() === 0,
-        })
-      }
       currentYearDate.setDate(currentYearDate.getDate() + 1);
     }
   }
-  return {
-    days: yearDays,
-    hijriDays: hijriYearDays,
-  }
-})
 
-onMounted(() => {
-  scrollOneYearToRight(years[0]);
+  return yearDays;
+});
+
+onMounted(async () => {
   defineYearAnimation();
+  await nextTick();
+  await nextTick();
+  scrollOneYear(years[0], false);
 })
 
-let scrollFlag = true;
-
+function scrollElement() {
+  requestAnimationFrame(scrollElement);
+}
 
 function handleScroll() {
-  if (!mainContainer.value) return;
-  if (mainContainer.value.scrollLeft + mainContainer.value.clientWidth >= mainContainer.value.scrollWidth - range && scrollFlag) {
+  if (!recycleContainer.value) return;
+  const scrollLeft = recycleContainer.value.$_lastUpdateScrollPosition;
+  // firstScroll = true;
+  // getScroll
+  // handleScroll
+  // scrollToItem
+  // scrollToPosition
+  console.log('---', scrollLeft)
+  if (scrollLeft > scrollWidth.value - RANGE && scrollFlag) {
     scrollFlag = false;
     addOneYear();
+    scrollFlag = true
+  }
+  if (scrollLeft < RANGE && scrollFlag) {
+    scrollFlag = false;
+    removeOneYear();
     scrollFlag = true
   }
 }
 
 function addOneYear() {
-  scrollOneYearToLeft(years[2]);
-  years.push(years[years.length - 1] + 1);
+  const firstYear = years[0];
   years.shift();
-  console.log('Scrolling ended near');
+  years.push(years[years.length - 1] + 1);
+  scrollOneYear(firstYear, true);
+}
+
+function removeOneYear() {
+  const lastYear = years[years.length - 1];
+  years.pop();
+  years.unshift(years[0] - 1);
+  scrollOneYear(lastYear, false);
 }
 
 function onDayClick(d: IDay) {
   navigator.clipboard.writeText(d.locale);
 }
 
-function scrollOneYearToRight(year: number) {
-  if (!mainContainer.value) return;
-  mainContainer.value.scrollLeft += daysInYear(year) * (daySize + dayGap) - dayGap;
+function scrollOneYear(year: number, left: boolean) {
+  if (!recycleContainer.value) return;
+  console.log('--- scroll', recycleContainer.value.$_lastUpdateScrollPosition)
+  const shift = daysInYear(year) * (daySize + dayGap) - dayGap;
+  recycleContainer.value.scrollToPosition(left ? recycleContainer.value.$_lastUpdateScrollPosition - shift : recycleContainer.value.$_lastUpdateScrollPosition + shift)
 }
 
-function scrollOneYearToLeft(year: number) {
-  if (!mainContainer.value) return;
-  mainContainer.value.scrollLeft -= daysInYear(year) * (daySize + dayGap) - dayGap;
-}
 
 function daysInYear(year: number) {
   return ((year % 4 === 0 && year % 100 > 0) || year % 400 == 0) ? 366 : 365;
@@ -135,40 +130,41 @@ function updateAnimation(t: number) {
   yearsSequence.totalProgress(t);
 }
 
+requestAnimationFrame(scrollElement);
+
 </script>
 
 <template>
   <div class="body-wrapper">
     <header>
       <h1> {{ years }} </h1>
-      <button @click="addOneYear"> add one year </button>
+      <button @click="scrollOneYear(2025, false)"> scroll to right </button>
+      <button @click="addOneYear"> addOneYear </button>
       <div class="blah"> </div>
+      <p style="color: white"> {{ scrollWidth }} {{ days.length }}</p>
     </header>
-    <main @scroll="handleScroll" ref="main-container" class="main-container">
-      <div class="days-container" ref="days-container">
-        <template v-for="d in days.days" :key="d.short">
-          <div class="day-container">
-            <p class="month-title month-title-milady" :class="{ 'month-title-hover': activeMonth === d.month }"
-              v-if="d.isStartOfMonth"> {{
-                d.month }} {{ d.short }} </p>
-            <div @click="onDayClick(d)" @mouseenter="activeMonth = d.month" @mouseleave="activeMonth = null" class="day"
-              :class="{ 'day-first-month': d.isStartOfMonth, 'day-normal': !d.isStartOfMonth }">
-            </div>
+    <main class="main-container">
+      <RecycleScroller @scroll="handleScroll" ref="recycle-container" class="days-container"
+        itemClass="recycle-container" :pageMode="false" direction="horizontal" :items="days"
+        :item-size="daySize + dayGap" v-slot="{ item }">
+        <div class="date-container date-container-milady">
+          <p class="month-title month-title-milady"
+            :class="{ 'month-title-hover': activeMonth === item.miladyDay.month }" v-if="item.miladyDay.isStartOfMonth">
+            {{ item.miladyDay.month }} </p>
+          <div @click="onDayClick(item.miladyDay)" @mouseenter="activeMonth = item.miladyDay.month"
+            @mouseleave="activeMonth = null" class="day"
+            :class="{ 'day-first-month': item.miladyDay.isStartOfMonth, 'day-normal': !item.miladyDay.isStartOfMonth }">
           </div>
-        </template>
-      </div>
-      <div class="days-container" ref="days-container">
-        <!-- <template v-for="d in days.hijriDays" :key="d.short">
-          <div class="day-container">
-            <p class="month-title month-title-hijri" :class="{ 'month-title-hover': activeMonth === d.month }"
-              v-if="d.isStartOfMonth"> {{
-                d.month }} </p>
-            <div @click="onDayClick(d)" @mouseenter="activeMonth = d.month" @mouseleave="activeMonth = null" class="day"
-              :class="{ 'day-first-month': d.isStartOfMonth, 'day-normal': !d.isStartOfMonth }">
-            </div>
+        </div>
+        <div class="date-container" v-if="item.hijriDay">
+          <p class="month-title month-title-hijri" :class="{ 'month-title-hover': activeMonth === item.hijriDay.month }"
+            v-if="item.hijriDay.isStartOfMonth"> {{ item.hijriDay.month }} </p>
+          <div @click="onDayClick(item.hijriDay)" @mouseenter="activeMonth = item.hijriDay.month"
+            @mouseleave="activeMonth = null" class="day"
+            :class="{ 'day-first-month': item.hijriDay.isStartOfMonth, 'day-normal': !item.hijriDay.isStartOfMonth }">
           </div>
-        </template> -->
-      </div>
+        </div>
+      </RecycleScroller>
     </main>
     <footer>
       <h1> {{ hijriYears }} </h1>
