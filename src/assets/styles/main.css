@@ -127,3 +127,19 @@ h1 {
 .month-title-hover {
   color: oklch(0.985 0 0);
 }
+
+.blah {
+  width: 20px;
+  height: 20px;
+  background-color: white;
+  animation: rotate 2s linear infinite;
+}
+
+@keyframes rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}

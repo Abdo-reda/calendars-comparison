@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, useTemplateRef } from 'vue';
+import { computed, nextTick, onMounted, reactive, ref, useTemplateRef } from 'vue';
 import { gsap } from "gsap";
 import { toHijri } from 'luxon-hijri';
 import { formatHijriDate } from 'luxon-hijri';
@@ -24,15 +24,16 @@ interface ICalendarDays {
 // const dateFormatter = new Intl.DateTimeFormat('default', { month: 'long' });
 const daySize = 24;
 const dayGap = 12;
-const currentYear = new Date().getUTCFullYear()
+const range = 512;
+const currentYear = ref(new Date().getUTCFullYear())
 const yearsSequence = gsap.timeline({ paused: true });
-const years = ref([currentYear - 1, currentYear, currentYear + 1]);
+const years = reactive([currentYear.value - 1, currentYear.value, currentYear.value + 1]);
 const activeMonth = ref<string | null>(null);
 const highlightWeek = ref<boolean>(false);
 const mainContainer = useTemplateRef('main-container');
 
 const hijriYears = computed(() => {
-  return years.value.map(y => {
+  return years.map(y => {
     const currentYearDate = new Date(y, 0, 1);
     return toHijri(currentYearDate)?.hy;
   })
@@ -41,7 +42,7 @@ const hijriYears = computed(() => {
 const days = computed<ICalendarDays>(() => {
   const yearDays: IDay[] = [];
   const hijriYearDays: IDay[] = [];
-  for (const y of years.value) {
+  for (const y of years) {
     const currentYearDate = new Date(y, 0, 1);
     while (currentYearDate.getFullYear() === y) {
       const hijriDate = toHijri(currentYearDate);
@@ -70,77 +71,42 @@ const days = computed<ICalendarDays>(() => {
   }
 })
 
-//-------> each one will have a set animation, a sequence of tweens, and once a sequence completes, we should only need to keep track of two sequences (prev year, next year), only one year can be visible at a time.
-//--> building that sequence might be a pain in the ass ... hmm .... is there a better way to deal with it?
-
-// Variable to control the animation progress
-
-// Function to update the animation progress
-
-
-const VIEWPORT_CENTER = window.innerWidth / 2;
-const YEAR_RANGE = 1;
-const CENTER_RANGE = 300;
-// const activeYear = ref(currentYear.value);
-// const years = computed(() => Array.from({ length: YEAR_RANGE * 2 + 1 }, (_, i) => currentYear.value + i - YEAR_RANGE))
-// const list = reactive(Array.from({ length: 5000 }, (_, index) => {
-//   return {
-//     id: index,
-//     name: `e ${index}`
-//   }
-// }));
-
-// const yearContainer = useTemplateRef('yearContainer');
-// const yearRefs = useTemplateRef('yearHeading')
-
-// function bufferedScroll() {
-//   debounce(handleScroll, 200);
-// }
-
-// const tempBlah = debounce(handleScroll, 100);
-
-// async function handleScroll() {
-//   let activeYear = currentYear.value;
-//   yearRefs.value?.forEach((heading, index) => {
-//     const rect = heading.getBoundingClientRect();
-//     const headingPos = Math.abs(rect.left); //+ rect.width / 2; // Center of the section
-//     // const distance = Math.abs(headingPos - VIEWPORT_CENTER); 
-//     // console.log('====', heading.textContent, headingPos)
-//     if (headingPos < CENTER_RANGE) activeYear = Number(heading.innerText);
-//   });
-//   changeActiveYear(activeYear)
-//   if (yearContainer.value) {
-//     const maxScrollLeft = yearContainer.value.scrollWidth - yearContainer.value.clientWidth;
-//     updateAnimation(yearContainer.value?.scrollLeft / maxScrollLeft)
-//   }
-//   listLeft.value = yearRefs.value?.map(h => h.getBoundingClientRect().left)
-//   // this.activeSection = closestSectionIndex;
-// }
-
-// function changeActiveYear(year: number) {
-//   if (!yearContainer.value) return;
-//   // console.log('--- how', year, currentYear.value)
-//   if (year === currentYear.value) return;
-//   // console.log('--- it should happen', year, currentYear.value)
-//   // if (year > currentYear.value) yearContainer.value.scrollLeft -= 2000;
-//   // if (year < currentYear.value) yearContainer.value.scrollLeft += 2000;
-//   // currentYear.value = year;
-//   // await nextTick();
-// }
-
 onMounted(() => {
-  scrollToMiddleYear();
+  scrollOneYearToRight(years[0]);
   defineYearAnimation();
 })
+
+let scrollFlag = true;
+
+
+function handleScroll() {
+  if (!mainContainer.value) return;
+  if (mainContainer.value.scrollLeft + mainContainer.value.clientWidth >= mainContainer.value.scrollWidth - range && scrollFlag) {
+    scrollFlag = false;
+    addOneYear();
+    scrollFlag = true
+  }
+}
+
+function addOneYear() {
+  scrollOneYearToLeft(years[2]);
+  years.push(years[years.length - 1] + 1);
+  years.shift();
+  console.log('Scrolling ended near');
+}
 
 function onDayClick(d: IDay) {
   navigator.clipboard.writeText(d.locale);
 }
 
-function scrollToMiddleYear() {
-  console.log("--- hello?")
+function scrollOneYearToRight(year: number) {
   if (!mainContainer.value) return;
-  mainContainer.value.scrollLeft = daysInYear(years.value[0]) * (daySize + dayGap) - dayGap;
+  mainContainer.value.scrollLeft += daysInYear(year) * (daySize + dayGap) - dayGap;
+}
+
+function scrollOneYearToLeft(year: number) {
+  if (!mainContainer.value) return;
+  mainContainer.value.scrollLeft -= daysInYear(year) * (daySize + dayGap) - dayGap;
 }
 
 function daysInYear(year: number) {
@@ -175,14 +141,16 @@ function updateAnimation(t: number) {
   <div class="body-wrapper">
     <header>
       <h1> {{ years }} </h1>
+      <button @click="addOneYear"> add one year </button>
+      <div class="blah"> </div>
     </header>
-    <main ref="main-container" class="main-container">
+    <main @scroll="handleScroll" ref="main-container" class="main-container">
       <div class="days-container" ref="days-container">
         <template v-for="d in days.days" :key="d.short">
           <div class="day-container">
             <p class="month-title month-title-milady" :class="{ 'month-title-hover': activeMonth === d.month }"
               v-if="d.isStartOfMonth"> {{
-                d.month }} </p>
+                d.month }} {{ d.short }} </p>
             <div @click="onDayClick(d)" @mouseenter="activeMonth = d.month" @mouseleave="activeMonth = null" class="day"
               :class="{ 'day-first-month': d.isStartOfMonth, 'day-normal': !d.isStartOfMonth }">
             </div>
@@ -190,7 +158,7 @@ function updateAnimation(t: number) {
         </template>
       </div>
       <div class="days-container" ref="days-container">
-        <template v-for="d in days.hijriDays" :key="d.short">
+        <!-- <template v-for="d in days.hijriDays" :key="d.short">
           <div class="day-container">
             <p class="month-title month-title-hijri" :class="{ 'month-title-hover': activeMonth === d.month }"
               v-if="d.isStartOfMonth"> {{
@@ -199,10 +167,9 @@ function updateAnimation(t: number) {
               :class="{ 'day-first-month': d.isStartOfMonth, 'day-normal': !d.isStartOfMonth }">
             </div>
           </div>
-        </template>
+        </template> -->
       </div>
     </main>
-
     <footer>
       <h1> {{ hijriYears }} </h1>
     </footer>
