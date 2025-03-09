@@ -4,13 +4,16 @@ import { gsap } from "gsap";
 import type { ICalendarDay, IDay } from './core/interfaces/dayInterface';
 import type { IRecycleScroller } from './core/interfaces/recycleScrollerInterface';
 import { createHijriDay, createMiladyDay, hijriPartsFormatter } from './core/utilities/dateUtil';
+import { useMouse } from './core/composables/useMouse';
 
 let scrollFlag = true;
+const SCROLL_SPEED_FACTOR = 100;
 const daySize = 24;
 const dayGap = 12;
 const RANGE = 4096;
 const yearsSequence = gsap.timeline({ paused: true });
 const recycleContainer = useTemplateRef<IRecycleScroller>('recycle-container');
+const { mouseXRatio } = useMouse();
 
 const currentYear = ref(new Date().getUTCFullYear())
 const activeMonth = ref<string | null>(null);
@@ -57,6 +60,8 @@ const tooltipPos = computed(() => {
   }
 })
 
+const scrollSpeed = computed(() => (mouseXRatio.value - 0.5) / 0.5)
+
 onMounted(async () => {
   defineYearAnimation();
   await nextTick();
@@ -74,7 +79,14 @@ function onDayMouseEnter(day: IDay, event: Event) {
   showTooltip.value = true;
 }
 
-function scrollElement() {
+async function scrollElement() {
+  if (recycleContainer.value) {
+    // console.log('--- scroollll', recycleContainer.value.$_lastUpdateScrollPosition, SCROLL_SPEED_FACTOR*scrollSpeed.value)
+    // console.log('--- value', recycleContainer.value.$_lastUpdateScrollPosition, SCROLL_SPEED_FACTOR*scrollSpeed.value)
+    // recycleContainer.value.$_lastUpdateScrollPosition += SCROLL_SPEED_FACTOR*scrollSpeed.value;
+    recycleContainer.value.scrollToPosition(recycleContainer.value.$_lastUpdateScrollPosition+SCROLL_SPEED_FACTOR*scrollSpeed.value);
+    // await nextTick();
+  }
   requestAnimationFrame(scrollElement);
 }
 
@@ -86,7 +98,7 @@ function handleScroll() {
   // handleScroll
   // scrollToItem
   // scrollToPosition
-  console.log('---', scrollLeft)
+  // console.log('---', scrollLeft)
   if (scrollLeft > scrollWidth.value - RANGE && scrollFlag) {
     scrollFlag = false;
     addOneYear();
@@ -119,7 +131,7 @@ function onDayClick(d: IDay) {
 
 function scrollOneYear(year: number, left: boolean) {
   if (!recycleContainer.value) return;
-  console.log('--- scroll', recycleContainer.value.$_lastUpdateScrollPosition)
+  // console.log('--- scroll', recycleContainer.value.$_lastUpdateScrollPosition)
   const shift = daysInYear(year) * (daySize + dayGap) - dayGap;
   recycleContainer.value.scrollToPosition(left ? recycleContainer.value.$_lastUpdateScrollPosition - shift : recycleContainer.value.$_lastUpdateScrollPosition + shift)
 }
@@ -161,7 +173,7 @@ requestAnimationFrame(scrollElement);
       <button @click="scrollOneYear(2025, false)"> scroll to right </button>
       <button @click="addOneYear"> addOneYear </button>
       <div class="blah" > </div>
-      <p style="color: white"> {{ scrollWidth }} {{ days.length }} {{ tooltipX }}</p>
+      <p style="color: white"> {{ scrollWidth }} {{ days.length }} {{ tooltipX }} {{ activeMonth }} {{ scrollSpeed }} </p>
     </header>
     <main class="main-container">
       <VTooltip :triggers="[]" :shown="showTooltip" :autoHide="false" style="position: fixed;" :style="tooltipPos">
@@ -199,13 +211,3 @@ requestAnimationFrame(scrollElement);
   </div>
 
 </template>
-
-<style lang="css" scoped>
-
-.tool {
-  background-color: red;
-  position: fixed;
-  top: 200px;
-}
-
-</style>
