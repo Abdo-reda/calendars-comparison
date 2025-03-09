@@ -11,9 +11,12 @@ const miladyMonthNames = Array.from({ length: 12 }, (_, i) => miladyMonthFormatt
 const hijriMonthNames = Array.from({ length: 12 }, (_, i) => hijriMonthFormatter.format(new Date(currentYear, i, 1)));
 
 export function createMiladyDay(date: Date): IDay {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
   return {
     locale: date.toLocaleDateString(),
-    short: date.toISOString().split("T")[0],
+    short: `${year}-${month}-${day}`,
     month: miladyMonthNames[date.getMonth()],
     isStartOfMonth: date.getDate() === 1,
     isStartOfWeek: date.getDay() === 0,

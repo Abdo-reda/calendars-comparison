@@ -14,6 +14,10 @@ const recycleContainer = useTemplateRef<IRecycleScroller>('recycle-container');
 
 const currentYear = ref(new Date().getUTCFullYear())
 const activeMonth = ref<string | null>(null);
+const activeDate = ref<string | null>();
+const showTooltip = ref<boolean>(false);
+const tooltipX = ref<number>(0);
+const tooltipY = ref<number>(0);
 
 const years = reactive([currentYear.value - 1, currentYear.value, currentYear.value + 1]);
 
@@ -46,12 +50,29 @@ const days = computed<ICalendarDay[]>(() => {
   return yearDays;
 });
 
+const tooltipPos = computed(() => {
+  return {
+    left: `${tooltipX.value}px`,
+    top: `${tooltipY.value}px`,
+  }
+})
+
 onMounted(async () => {
   defineYearAnimation();
   await nextTick();
   await nextTick();
   scrollOneYear(years[0], false);
 })
+
+function onDayMouseEnter(day: IDay, event: Event) {
+  if (!(event.target instanceof HTMLElement)) return;
+  const rect = event.target.getBoundingClientRect();
+  tooltipX.value = rect.x + rect.width/2;
+  tooltipY.value = rect.y - 4;
+  activeMonth.value = day.month; 
+  activeDate.value = day.short; 
+  showTooltip.value = true;
+}
 
 function scrollElement() {
   requestAnimationFrame(scrollElement);
@@ -103,7 +124,6 @@ function scrollOneYear(year: number, left: boolean) {
   recycleContainer.value.scrollToPosition(left ? recycleContainer.value.$_lastUpdateScrollPosition - shift : recycleContainer.value.$_lastUpdateScrollPosition + shift)
 }
 
-
 function daysInYear(year: number) {
   return ((year % 4 === 0 && year % 100 > 0) || year % 400 == 0) ? 366 : 365;
 }
@@ -140,27 +160,34 @@ requestAnimationFrame(scrollElement);
       <h1> {{ years }} </h1>
       <button @click="scrollOneYear(2025, false)"> scroll to right </button>
       <button @click="addOneYear"> addOneYear </button>
-      <div class="blah"> </div>
-      <p style="color: white"> {{ scrollWidth }} {{ days.length }}</p>
+      <div class="blah" > </div>
+      <p style="color: white"> {{ scrollWidth }} {{ days.length }} {{ tooltipX }}</p>
     </header>
     <main class="main-container">
+      <VTooltip :triggers="[]" :shown="showTooltip" :autoHide="false" style="position: fixed;" :style="tooltipPos">
+        <template #popper>
+          {{ activeDate }}
+        </template>
+      </VTooltip>
       <RecycleScroller @scroll="handleScroll" ref="recycle-container" class="days-container"
         itemClass="recycle-container" :pageMode="false" direction="horizontal" :items="days"
         :item-size="daySize + dayGap" v-slot="{ item }">
         <div class="date-container date-container-milady">
           <p class="month-title month-title-milady"
             :class="{ 'month-title-hover': activeMonth === item.miladyDay.month }" v-if="item.miladyDay.isStartOfMonth">
-            {{ item.miladyDay.month }} </p>
-          <div @click="onDayClick(item.miladyDay)" @mouseenter="activeMonth = item.miladyDay.month"
-            @mouseleave="activeMonth = null" class="day"
+            {{ item.miladyDay.month }}  </p>
+          <div @click="onDayClick(item.miladyDay)"
+            @mouseenter="onDayMouseEnter(item.miladyDay, $event)"
+            @mouseleave="activeMonth = null; showTooltip = false" class="day"
             :class="{ 'day-first-month': item.miladyDay.isStartOfMonth, 'day-normal': !item.miladyDay.isStartOfMonth }">
           </div>
         </div>
         <div class="date-container" v-if="item.hijriDay">
           <p class="month-title month-title-hijri" :class="{ 'month-title-hover': activeMonth === item.hijriDay.month }"
             v-if="item.hijriDay.isStartOfMonth"> {{ item.hijriDay.month }} </p>
-          <div @click="onDayClick(item.hijriDay)" @mouseenter="activeMonth = item.hijriDay.month"
-            @mouseleave="activeMonth = null" class="day"
+          <div @click="onDayClick(item.hijriDay)"
+            @mouseenter="onDayMouseEnter(item.hijriDay, $event)"
+            @mouseleave="showTooltip = false; activeMonth = null; " class="day"
             :class="{ 'day-first-month': item.hijriDay.isStartOfMonth, 'day-normal': !item.hijriDay.isStartOfMonth }">
           </div>
         </div>
@@ -172,3 +199,13 @@ requestAnimationFrame(scrollElement);
   </div>
 
 </template>
+
+<style lang="css" scoped>
+
+.tool {
+  background-color: red;
+  position: fixed;
+  top: 200px;
+}
+
+</style>
