@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, reactive, ref, useTemplateRef } from 'vue';
+import { computed, nextTick, onMounted, reactive, ref, useTemplateRef, customRef } from 'vue';
 import { gsap } from "gsap";
 import type { ICalendarDay, IDay } from './core/interfaces/dayInterface';
 import type { IRecycleScroller } from './core/interfaces/recycleScrollerInterface';
@@ -7,11 +7,31 @@ import { createHijriDay, createMiladyDay, hijriPartsFormatter } from './core/uti
 import { useMouse } from './core/composables/useMouse';
 
 //TODO:
-//- scroll to year
-//- stop mouse scroll
+//- fix bug and glitching of the year.
+//- 
+
+// function debouncedRef<T>(value: T, delay = 50) {
+//   let timeoutId: number|null = null;
+//   return customRef((track, trigger) => ({
+//     get() {
+//       track();
+//       return value;
+//     },
+//     set(newValue) {
+//       if (newValue !== value) {
+//         if (timeoutId) clearTimeout(timeoutId);
+//         timeoutId = setTimeout(() => {
+//           value = newValue; // Update the stabilized value
+//           trigger(); // Notify Vue
+//         }, delay);
+//       }
+//     }
+//   }));
+// }
 
 let copiedTimeout: number | null = null;
 let hoverTimeout: number | null = null;
+let displayYearTimeout: number | null = null;
 let scrollFlag = true;
 let recycleScroller: HTMLDivElement | null = null;
 const SMOOTHNESS = 0.05;
@@ -35,15 +55,14 @@ const scrollLeft = ref<number>(0);
 const scrollPercentSmooth = ref<number>(0);
 const years = reactive([currentYear.value - 1, currentYear.value, currentYear.value + 1]);
 const displayedYear = ref<number>(years[1]);
+const activeYear = ref<number>(years[1]);
 
 const yearDaysWidth = computed(() => years.map(y => daysInYear(y) * (daySize + dayGap) - dayGap));
 const scrollWidth = computed(() => days.value.length * (daySize + dayGap))
-const hijriYears = computed(() => {
-  return years.map(y => {
-    const currentYearDate = new Date(y, 0, 1);
-    return hijriPartsFormatter.formatToParts(currentYearDate).find(part => part.type === 'year')!.value;
-  })
-})
+const hijriYears = computed(() => years.map(y => {
+  const currentYearDate = new Date(y, 0, 1);
+  return hijriPartsFormatter.formatToParts(currentYearDate).find(part => part.type === 'year')!.value;
+}))
 
 const days = computed<ICalendarDay[]>(() => {
   const yearDays: ICalendarDay[] = [];
@@ -66,20 +85,19 @@ const days = computed<ICalendarDay[]>(() => {
   return yearDays;
 });
 
-const tooltipPos = computed(() => {
-  return {
-    left: `${tooltipX.value}px`,
-    top: `${tooltipY.value + (isActiveDateHijri.value ? daySize + dayGap : 0)}px`,
-  }
-})
+const tooltipPos = computed(() => ({
+  left: `${tooltipX.value}px`,
+  top: `${tooltipY.value + (isActiveDateHijri.value ? daySize + dayGap : 0)}px`,
+}));
 
 const scrollSpeed = computed(() => (mouseXRatio.value - 0.5) / 0.5);
 const scrollSpeedMapped = computed(() => Math.exp(Math.abs(3 * scrollSpeed.value)) * scrollSpeed.value);
-const scrollPercent = computed(() =>  {
-  const firstYearPercent = (scrollLeft.value)/(yearDaysWidth.value[0]);
-  const midYearPercent = (scrollLeft.value-yearDaysWidth.value[0])/(yearDaysWidth.value[1]);
-  const lastYearPercent = (scrollLeft.value-yearDaysWidth.value[0]-yearDaysWidth.value[1])/(yearDaysWidth.value[2]);
-  return getActiveYear(firstYearPercent, midYearPercent, lastYearPercent); 
+const scrollPercent = computed(() => {
+  const firstYearPercent = (scrollLeft.value) / (yearDaysWidth.value[0]);
+  const midYearPercent = (scrollLeft.value - yearDaysWidth.value[0]) / (yearDaysWidth.value[1]);
+  const lastYearPercent = (scrollLeft.value - yearDaysWidth.value[0] - yearDaysWidth.value[1]) / (yearDaysWidth.value[2]);
+  changeActiveYear(firstYearPercent, midYearPercent, lastYearPercent);
+  return getActiveYear(firstYearPercent, midYearPercent, lastYearPercent);
 });
 
 gsap.ticker.add(() => {
@@ -186,17 +204,26 @@ function defineYearAnimation() {
 }
 
 function getActiveYear(firstYear: number, secondYear: number, thirdYear: number): number {
-  if (0<=firstYear && firstYear<=1) {
-    displayedYear.value = years[0]; 
-    return firstYear;
-  } 
-  if (0<=secondYear && secondYear<=1) {
-    displayedYear.value = years[1]; 
-    return secondYear;
-  }
-  displayedYear.value = years[2]; 
+  if (0 <= firstYear && firstYear <= 1) return firstYear; 
+  if (0 <= secondYear && secondYear <= 1) return secondYear;
   return thirdYear;
 }
+
+function changeActiveYear(firstYear: number, secondYear: number, thirdYear: number) {
+  let updatedActiveYear = years[2];
+  if (0 <= firstYear && firstYear <= 1) {
+    updatedActiveYear = years[0];
+  }
+  if (0 <= secondYear && secondYear <= 1) {
+    updatedActiveYear = years[1];
+  }
+  if (updatedActiveYear !== activeYear.value) {
+    if(displayYearTimeout) clearTimeout(displayYearTimeout);
+    displayYearTimeout = setTimeout(() => displayedYear.value = updatedActiveYear, 100)
+  }
+  activeYear.value = updatedActiveYear;
+}
+
 
 function handleAnimationFrame() {
   scrollElement();
@@ -204,11 +231,10 @@ function handleAnimationFrame() {
 }
 
 function scrollElement() {
-  if (recycleScroller) {
-    recycleScroller.scrollBy({
-      left: SCROLL_SPEED_FACTOR * scrollSpeedMapped.value,
-    });
-  }
+  if (!recycleScroller) return;
+  recycleScroller.scrollBy({
+    left: SCROLL_SPEED_FACTOR * scrollSpeedMapped.value,
+  });
 }
 
 requestAnimationFrame(handleAnimationFrame);
