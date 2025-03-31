@@ -7,20 +7,26 @@ import { createHijriDay, createMiladyDay, hijriPartsFormatter } from './core/uti
 import { useMouse } from './core/composables/useMouse';
 
 let scrollFlag = true;
-const SCROLL_SPEED_FACTOR = 100;
+const SCROLL_SPEED_FACTOR = 8;
 const daySize = 24;
 const dayGap = 12;
 const RANGE = 4096;
 const yearsSequence = gsap.timeline({ paused: true });
 const recycleContainer = useTemplateRef<IRecycleScroller>('recycle-container');
+let recycleScroller: HTMLDivElement | null = null;
 const { mouseXRatio } = useMouse();
 
 const currentYear = ref(new Date().getUTCFullYear())
 const activeMonth = ref<string | null>(null);
+
+const isActiveDateHijri = ref<boolean>(false);
 const activeDate = ref<string | null>();
+const showCopied = ref<boolean>(false);
 const showTooltip = ref<boolean>(false);
 const tooltipX = ref<number>(0);
 const tooltipY = ref<number>(0);
+let copiedTimeout: number | null = null;
+let hoverTimeout: number | null = null;
 
 const years = reactive([currentYear.value - 1, currentYear.value, currentYear.value + 1]);
 
@@ -56,49 +62,53 @@ const days = computed<ICalendarDay[]>(() => {
 const tooltipPos = computed(() => {
   return {
     left: `${tooltipX.value}px`,
-    top: `${tooltipY.value}px`,
+    top: `${tooltipY.value + (isActiveDateHijri.value ? daySize + dayGap : 0)}px`,
   }
 })
 
-const scrollSpeed = computed(() => (mouseXRatio.value - 0.5) / 0.5)
+const scrollSpeed = computed(() => (mouseXRatio.value - 0.5) / 0.5);
+const scrollSpeedMapped = computed(() => Math.exp(Math.abs(3 * scrollSpeed.value)) * scrollSpeed.value);
 
 onMounted(async () => {
   defineYearAnimation();
+  recycleScroller = document.getElementsByClassName('vue-recycle-scroller').item(0) as HTMLDivElement;
   await nextTick();
   await nextTick();
   scrollOneYear(years[0], false);
 })
 
-function onDayMouseEnter(day: IDay, event: Event) {
-  if (!(event.target instanceof HTMLElement)) return;
-  const rect = event.target.getBoundingClientRect();
-  tooltipX.value = rect.x + rect.width/2;
-  tooltipY.value = rect.y - 4;
-  activeMonth.value = day.month; 
-  activeDate.value = day.short; 
-  showTooltip.value = true;
+function onDayMouseEnter(isHijri: boolean, day: IDay, event: Event) {
+  if (hoverTimeout) clearTimeout(hoverTimeout);
+  hoverTimeout = setTimeout(() => {
+    if (!(event.target instanceof HTMLElement)) return;
+    const rect = event.target.getBoundingClientRect();
+    tooltipX.value = rect.x + rect.width / 2;
+    tooltipY.value = rect.y - 4;
+    activeMonth.value = day.month;
+    activeDate.value = day.short;
+    showTooltip.value = true;
+    isActiveDateHijri.value = isHijri;
+  }, 200)
+}
+
+function onDayMouseLeave() {
+  showTooltip.value = false;
+  activeMonth.value = null;
+  if (hoverTimeout) clearTimeout(hoverTimeout);
 }
 
 async function scrollElement() {
-  if (recycleContainer.value) {
-    // console.log('--- scroollll', recycleContainer.value.$_lastUpdateScrollPosition, SCROLL_SPEED_FACTOR*scrollSpeed.value)
-    // console.log('--- value', recycleContainer.value.$_lastUpdateScrollPosition, SCROLL_SPEED_FACTOR*scrollSpeed.value)
-    // recycleContainer.value.$_lastUpdateScrollPosition += SCROLL_SPEED_FACTOR*scrollSpeed.value;
-    recycleContainer.value.scrollToPosition(recycleContainer.value.$_lastUpdateScrollPosition+SCROLL_SPEED_FACTOR*scrollSpeed.value);
-    // await nextTick();
+  if (recycleScroller) {
+    recycleScroller.scrollBy({
+      left: SCROLL_SPEED_FACTOR * scrollSpeedMapped.value,
+    });
   }
   requestAnimationFrame(scrollElement);
 }
 
-function handleScroll() {
+function onScroll() {
   if (!recycleContainer.value) return;
   const scrollLeft = recycleContainer.value.$_lastUpdateScrollPosition;
-  // firstScroll = true;
-  // getScroll
-  // handleScroll
-  // scrollToItem
-  // scrollToPosition
-  // console.log('---', scrollLeft)
   if (scrollLeft > scrollWidth.value - RANGE && scrollFlag) {
     scrollFlag = false;
     addOneYear();
@@ -127,6 +137,12 @@ function removeOneYear() {
 
 function onDayClick(d: IDay) {
   navigator.clipboard.writeText(d.locale);
+  showCopied.value = true;
+  if (copiedTimeout) clearTimeout(copiedTimeout);
+  copiedTimeout = setTimeout(() => {
+    showCopied.value = false;
+    copiedTimeout = null;
+  }, 500);
 }
 
 function scrollOneYear(year: number, left: boolean) {
@@ -172,34 +188,34 @@ requestAnimationFrame(scrollElement);
       <h1> {{ years }} </h1>
       <button @click="scrollOneYear(2025, false)"> scroll to right </button>
       <button @click="addOneYear"> addOneYear </button>
-      <div class="blah" > </div>
-      <p style="color: white"> {{ scrollWidth }} {{ days.length }} {{ tooltipX }} {{ activeMonth }} {{ scrollSpeed }} </p>
+      <div class="blah"> </div>
+      <p style="color: white"> {{ scrollWidth }} {{ days.length }} // {{ tooltipX }} - {{ tooltipY }} // {{ activeMonth
+        }} {{ scrollSpeed }}
+      </p>
     </header>
     <main class="main-container">
-      <VTooltip :triggers="[]" :shown="showTooltip" :autoHide="false" style="position: fixed;" :style="tooltipPos">
+      <VTooltip :triggers="[]" :placement="isActiveDateHijri ? 'bottom' : 'top'" :shown="showTooltip" :autoHide="false"
+        style="position: fixed;" :style="tooltipPos">
         <template #popper>
-          {{ activeDate }}
+          {{ showCopied ? 'Copied!' : activeDate }}
         </template>
       </VTooltip>
-      <RecycleScroller @scroll="handleScroll" ref="recycle-container" class="days-container"
-        itemClass="recycle-container" :pageMode="false" direction="horizontal" :items="days"
-        :item-size="daySize + dayGap" v-slot="{ item }">
+      <RecycleScroller @scroll="onScroll" ref="recycle-container" class="days-container" itemClass="recycle-container"
+        :pageMode="false" direction="horizontal" :items="days" :item-size="daySize + dayGap" v-slot="{ item }">
         <div class="date-container date-container-milady">
           <p class="month-title month-title-milady"
             :class="{ 'month-title-hover': activeMonth === item.miladyDay.month }" v-if="item.miladyDay.isStartOfMonth">
-            {{ item.miladyDay.month }}  </p>
-          <div @click="onDayClick(item.miladyDay)"
-            @mouseenter="onDayMouseEnter(item.miladyDay, $event)"
-            @mouseleave="activeMonth = null; showTooltip = false" class="day"
+            {{ item.miladyDay.month }} </p>
+          <div @click="onDayClick(item.miladyDay)" @mouseenter="onDayMouseEnter(false, item.miladyDay, $event)"
+            @mouseleave="onDayMouseLeave()" class="day"
             :class="{ 'day-first-month': item.miladyDay.isStartOfMonth, 'day-normal': !item.miladyDay.isStartOfMonth }">
           </div>
         </div>
         <div class="date-container" v-if="item.hijriDay">
           <p class="month-title month-title-hijri" :class="{ 'month-title-hover': activeMonth === item.hijriDay.month }"
             v-if="item.hijriDay.isStartOfMonth"> {{ item.hijriDay.month }} </p>
-          <div @click="onDayClick(item.hijriDay)"
-            @mouseenter="onDayMouseEnter(item.hijriDay, $event)"
-            @mouseleave="showTooltip = false; activeMonth = null; " class="day"
+          <div @click="onDayClick(item.hijriDay)" @mouseenter="onDayMouseEnter(true, item.hijriDay, $event)"
+            @mouseleave="onDayMouseLeave()" class="day"
             :class="{ 'day-first-month': item.hijriDay.isStartOfMonth, 'day-normal': !item.hijriDay.isStartOfMonth }">
           </div>
         </div>
