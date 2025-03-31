@@ -122,16 +122,25 @@ function onDayClick() {
     </RecycleScroller> -->
   </header>
 
+  <!-- <div v-auto-animate style="overflow: hidden; width: 94px; text-align: center;">
+    <div v-if="showCopied">
+      Copied!
+    </div>
+    <div v-else>
+      {{ activeDate }}
+    </div>
+  </div> -->
+
   <main>
     <button @click="tempYears.push(0)"> add year </button>
     <button @click="tempYears.pop()"> pop year </button>
     <button @click="tempYears.shift()"> shift year </button>
     <p style="color: white">{{ tempYears }} </p>
-      <div class="days-container">
-        <div @click="onDayClick" class="day" :class="{ 'day-first-month': i % 30 === 0, 'day-normal': i % 30 !== 0 }"
-          v-for="i in 365*tempYears.length" :key="i">
-        </div>
+    <div class="days-container">
+      <div @click="onDayClick" class="day" :class="{ 'day-first-month': i % 30 === 0, 'day-normal': i % 30 !== 0 }"
+        v-for="i in 365 * tempYears.length" :key="i">
       </div>
+    </div>
     <!-- <RecycleScroller class="scroller" :pageMode="true" :items="list" :item-size="32" key-field="id" v-slot="{ item }">
       <div class="user">
         {{ item.name }}

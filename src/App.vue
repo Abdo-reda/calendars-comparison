@@ -6,30 +6,37 @@ import type { IRecycleScroller } from './core/interfaces/recycleScrollerInterfac
 import { createHijriDay, createMiladyDay, hijriPartsFormatter } from './core/utilities/dateUtil';
 import { useMouse } from './core/composables/useMouse';
 
+//TODO:
+//- scroll to year
+//- stop mouse scroll
+
+let copiedTimeout: number | null = null;
+let hoverTimeout: number | null = null;
 let scrollFlag = true;
+let recycleScroller: HTMLDivElement | null = null;
+const SMOOTHNESS = 0.05;
 const SCROLL_SPEED_FACTOR = 8;
 const daySize = 24;
 const dayGap = 12;
 const RANGE = 4096;
 const yearsSequence = gsap.timeline({ paused: true });
 const recycleContainer = useTemplateRef<IRecycleScroller>('recycle-container');
-let recycleScroller: HTMLDivElement | null = null;
 const { mouseXRatio } = useMouse();
 
 const currentYear = ref(new Date().getUTCFullYear())
 const activeMonth = ref<string | null>(null);
-
-const isActiveDateHijri = ref<boolean>(false);
 const activeDate = ref<string | null>();
+const isActiveDateHijri = ref<boolean>(false);
 const showCopied = ref<boolean>(false);
 const showTooltip = ref<boolean>(false);
 const tooltipX = ref<number>(0);
 const tooltipY = ref<number>(0);
-let copiedTimeout: number | null = null;
-let hoverTimeout: number | null = null;
-
+const scrollLeft = ref<number>(0);
+const scrollPercentSmooth = ref<number>(0);
 const years = reactive([currentYear.value - 1, currentYear.value, currentYear.value + 1]);
+const displayedYear = ref<number>(years[1]);
 
+const yearDaysWidth = computed(() => years.map(y => daysInYear(y) * (daySize + dayGap) - dayGap));
 const scrollWidth = computed(() => days.value.length * (daySize + dayGap))
 const hijriYears = computed(() => {
   return years.map(y => {
@@ -68,6 +75,17 @@ const tooltipPos = computed(() => {
 
 const scrollSpeed = computed(() => (mouseXRatio.value - 0.5) / 0.5);
 const scrollSpeedMapped = computed(() => Math.exp(Math.abs(3 * scrollSpeed.value)) * scrollSpeed.value);
+const scrollPercent = computed(() =>  {
+  const firstYearPercent = (scrollLeft.value)/(yearDaysWidth.value[0]);
+  const midYearPercent = (scrollLeft.value-yearDaysWidth.value[0])/(yearDaysWidth.value[1]);
+  const lastYearPercent = (scrollLeft.value-yearDaysWidth.value[0]-yearDaysWidth.value[1])/(yearDaysWidth.value[2]);
+  return getActiveYear(firstYearPercent, midYearPercent, lastYearPercent); 
+});
+
+gsap.ticker.add(() => {
+  scrollPercentSmooth.value += (scrollPercent.value - scrollPercentSmooth.value) * ((scrollPercent.value > 0.99 || scrollPercent.value < 0.01) ? 1 : SMOOTHNESS);
+  yearsSequence.totalProgress(scrollPercentSmooth.value, true);
+});
 
 onMounted(async () => {
   defineYearAnimation();
@@ -97,24 +115,16 @@ function onDayMouseLeave() {
   if (hoverTimeout) clearTimeout(hoverTimeout);
 }
 
-async function scrollElement() {
-  if (recycleScroller) {
-    recycleScroller.scrollBy({
-      left: SCROLL_SPEED_FACTOR * scrollSpeedMapped.value,
-    });
-  }
-  requestAnimationFrame(scrollElement);
-}
 
 function onScroll() {
   if (!recycleContainer.value) return;
-  const scrollLeft = recycleContainer.value.$_lastUpdateScrollPosition;
-  if (scrollLeft > scrollWidth.value - RANGE && scrollFlag) {
+  scrollLeft.value = recycleContainer.value.$_lastUpdateScrollPosition;
+  if (scrollLeft.value > scrollWidth.value - RANGE && scrollFlag) {
     scrollFlag = false;
     addOneYear();
     scrollFlag = true
   }
-  if (scrollLeft < RANGE && scrollFlag) {
+  if (scrollLeft.value < RANGE && scrollFlag) {
     scrollFlag = false;
     removeOneYear();
     scrollFlag = true
@@ -147,7 +157,6 @@ function onDayClick(d: IDay) {
 
 function scrollOneYear(year: number, left: boolean) {
   if (!recycleContainer.value) return;
-  // console.log('--- scroll', recycleContainer.value.$_lastUpdateScrollPosition)
   const shift = daysInYear(year) * (daySize + dayGap) - dayGap;
   recycleContainer.value.scrollToPosition(left ? recycleContainer.value.$_lastUpdateScrollPosition - shift : recycleContainer.value.$_lastUpdateScrollPosition + shift)
 }
@@ -157,41 +166,63 @@ function daysInYear(year: number) {
 }
 
 function defineYearAnimation() {
-  yearsSequence
-    .fromTo(".box",
-      { x: "100vw" },
-      {
-        x: "64px",
-        ease: "power1.inOut"
-      }
-    ).to(".box",
+  yearsSequence.to(".milady-year",
+    {
+      x: "64px",
+      opacity: 1,
+      ease: "power1.inOut",
+      duration: 0.1
+    }
+  )
+    .to(".milady-year",
       {
         scale: 0,
         opacity: 0,
-        ease: "power1.inOut"
+        ease: "power1.inOut",
+        duration: 0.1
       },
-      "+=1"
+      0.9
     );
 }
 
-function updateAnimation(t: number) {
-  yearsSequence.totalProgress(t);
+function getActiveYear(firstYear: number, secondYear: number, thirdYear: number): number {
+  if (0<=firstYear && firstYear<=1) {
+    displayedYear.value = years[0]; 
+    return firstYear;
+  } 
+  if (0<=secondYear && secondYear<=1) {
+    displayedYear.value = years[1]; 
+    return secondYear;
+  }
+  displayedYear.value = years[2]; 
+  return thirdYear;
 }
 
-requestAnimationFrame(scrollElement);
+function handleAnimationFrame() {
+  scrollElement();
+  requestAnimationFrame(handleAnimationFrame);
+}
+
+function scrollElement() {
+  if (recycleScroller) {
+    recycleScroller.scrollBy({
+      left: SCROLL_SPEED_FACTOR * scrollSpeedMapped.value,
+    });
+  }
+}
+
+requestAnimationFrame(handleAnimationFrame);
 
 </script>
 
 <template>
   <div class="body-wrapper">
     <header>
-      <h1> {{ years }} </h1>
-      <button @click="scrollOneYear(2025, false)"> scroll to right </button>
-      <button @click="addOneYear"> addOneYear </button>
-      <div class="blah"> </div>
-      <p style="color: white"> {{ scrollWidth }} {{ days.length }} // {{ tooltipX }} - {{ tooltipY }} // {{ activeMonth
-        }} {{ scrollSpeed }}
+      <!-- <h1> {{ years[1] }} </h1> -->
+      <h1 class="milady-year year"> {{ displayedYear }} </h1>
+      <p style="color: white"> {{ scrollPercent }}% // {{ scrollPercentSmooth }}
       </p>
+      <!-- // {{ scrollWidth }} // {{ scrollLeft }} // {{ daysInYear(years[0]) * (daySize + dayGap) - dayGap }} //{{ daysInYear(years[1]) * (daySize + dayGap) - dayGap }} -->
     </header>
     <main class="main-container">
       <VTooltip :triggers="[]" :placement="isActiveDateHijri ? 'bottom' : 'top'" :shown="showTooltip" :autoHide="false"

@@ -37,17 +37,20 @@ body {
   margin: 0px;
 }
 
+header {
+  width: 100%;
+  text-align: left;
+}
+
 h1 {
   color: oklch(0.923 0.003 48.717);
   font-size: 4.5rem;
-}
-
-.year-container {
-  overflow-x: hidden;
+  width: fit-content;
 }
 
 .year {
-  flex: 0 0 2000px;
+  transform: translateX(100vh);
+  opacity: 0;
 }
 
 .days-container {
@@ -139,20 +142,4 @@ h1 {
 
 .month-title-hover {
   color: oklch(0.985 0 0);
-}
-
-.blah {
-  width: 20px;
-  height: 20px;
-  background-color: white;
-  animation: rotate 2s linear infinite;
-}
-
-@keyframes rotate {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
 }
