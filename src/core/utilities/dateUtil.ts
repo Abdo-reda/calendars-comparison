@@ -10,6 +10,8 @@ const currentYear = new Date().getUTCFullYear();
 const miladyMonthNames = Array.from({ length: 12 }, (_, i) => miladyMonthFormatter.format(new Date(currentYear, i, 1)));
 const hijriMonthNames = Array.from({ length: 12 }, (_, i) => hijriMonthFormatter.format(new Date(currentYear, i, 1)));
 
+const daysInMonth = (year: number, month: number) => new Date(year, month, 0).getDate();
+
 export function createMiladyDay(date: Date): IDay {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -18,6 +20,7 @@ export function createMiladyDay(date: Date): IDay {
     locale: date.toLocaleDateString(),
     short: `${year}-${month}-${day}`,
     month: miladyMonthNames[date.getMonth()],
+    // monthDays: daysInMonth(year, date.getMonth()+1),
     isStartOfMonth: date.getDate() === 1,
     isStartOfWeek: date.getDay() === 0,
   };
@@ -29,6 +32,7 @@ export function createHijriDay(date: Date): IDay | null {
     locale: hijiriLocaleFormatter.format(date),
     short: `${hijriDate.year}-${hijriDate.month}-${hijriDate.day}`,
     month: hijriMonthNames[date.getMonth()],
+    // monthDays: 
     isStartOfMonth: +hijriDate.day === 1,
     isStartOfWeek: date.getDay() === 0,
   };

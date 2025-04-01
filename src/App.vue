@@ -6,11 +6,11 @@ import type { IRecycleScroller } from './core/interfaces/recycleScrollerInterfac
 import { createHijriDay, createMiladyDay, hijriPartsFormatter } from './core/utilities/dateUtil';
 import { useMouse } from './core/composables/useMouse';
 import { usePanMouse } from './core/composables/usePanMouse';
-import { useDragScroll } from './core/composables/useDragScroll';
 import { useTheme } from './core/composables/useTheme';
 
 //TODO:
-//- light mode, (dark blue and milky yellow white)
+//- go to year
+//- explanations
 //- hijri date years animation
 //- ramadan twice?
 //- year gaps (blocks) and dividers background colors.
@@ -21,12 +21,15 @@ let hoverTimeout: number | null = null;
 let displayYearTimeout: number | null = null;
 let recycleScroller = ref<HTMLDivElement | null>(null);
 let scrollFlag = true;
+let scrollPercentSmooth = 0;
+let hijriScrollPercentSmooth = 0;
 const SMOOTHNESS = 0.05;
 const SCROLL_SPEED_FACTOR = 8;
 const daySize = 24;
 const dayGap = 12;
 const RANGE = 4096;
 const yearsSequence = gsap.timeline({ paused: true });
+const hijriYearsSequence = gsap.timeline({ paused: true });
 const recycleContainer = useTemplateRef<IRecycleScroller>('recycle-container');
 const { mouseXRatio } = useMouse();
 const { isPanActive } = usePanMouse();
@@ -41,17 +44,13 @@ const showTooltip = ref<boolean>(false);
 const tooltipX = ref<number>(0);
 const tooltipY = ref<number>(0);
 const scrollLeft = ref<number>(0);
-const scrollPercentSmooth = ref<number>(0);
 const years = reactive([currentYear.value - 1, currentYear.value, currentYear.value + 1]);
 const displayedYear = ref<number>(years[1]);
 const activeYear = ref<number>(years[1]);
 
 const yearDaysWidth = computed(() => years.map(y => daysInYear(y) * (daySize + dayGap) - dayGap));
 const scrollWidth = computed(() => days.value.length * (daySize + dayGap))
-const hijriYears = computed(() => years.map(y => {
-  const currentYearDate = new Date(y, 0, 1);
-  return hijriPartsFormatter.formatToParts(currentYearDate).find(part => part.type === 'year')!.value;
-}))
+const hijriYears = computed(() => years.map(y => hijriPartsFormatter.formatToParts(new Date(y, 0, 1)).find(part => part.type === 'year')!.value))
 
 const days = computed<ICalendarDay[]>(() => {
   const yearDays: ICalendarDay[] = [];
@@ -82,16 +81,29 @@ const tooltipPos = computed(() => ({
 const scrollSpeed = computed(() => (mouseXRatio.value - 0.5) / 0.5);
 const scrollSpeedMapped = computed(() => Math.exp(Math.abs(3 * scrollSpeed.value)) * scrollSpeed.value);
 const scrollPercent = computed(() => {
-  const firstYearPercent = (scrollLeft.value) / (yearDaysWidth.value[0]);
-  const midYearPercent = (scrollLeft.value - yearDaysWidth.value[0]) / (yearDaysWidth.value[1]);
-  const lastYearPercent = (scrollLeft.value - yearDaysWidth.value[0] - yearDaysWidth.value[1]) / (yearDaysWidth.value[2]);
+  const lastMonthDays = 31 * (daySize + dayGap);
+  const shiftedScroll = scrollLeft.value + lastMonthDays;
+  const firstYearPercent = (shiftedScroll) / (yearDaysWidth.value[0]);
+  const midYearPercent = (shiftedScroll - yearDaysWidth.value[0]) / (yearDaysWidth.value[1]);
+  const lastYearPercent = (shiftedScroll - yearDaysWidth.value[0] - yearDaysWidth.value[1]) / (yearDaysWidth.value[2]);
   changeActiveYear(firstYearPercent, midYearPercent, lastYearPercent);
   return getActiveYear(firstYearPercent, midYearPercent, lastYearPercent);
 });
+// const hijirScrollPercent = computed(() => {
+//   const lastMonthDays = 29.5 * (daySize + dayGap);
+//   const shiftedScroll = scrollLeft.value + lastMonthDays;
+//   const firstYearPercent = (shiftedScroll) / (yearDaysWidth.value[0]);
+//   const midYearPercent = (shiftedScroll - yearDaysWidth.value[0]) / (yearDaysWidth.value[1]);
+//   const lastYearPercent = (shiftedScroll - yearDaysWidth.value[0] - yearDaysWidth.value[1]) / (yearDaysWidth.value[2]);
+//   changeActiveYear(firstYearPercent, midYearPercent, lastYearPercent);
+//   return getActiveYear(firstYearPercent, midYearPercent, lastYearPercent);
+// });
 
 gsap.ticker.add(() => {
-  scrollPercentSmooth.value += (scrollPercent.value - scrollPercentSmooth.value) * ((scrollPercent.value > 0.99 || scrollPercent.value < 0.01) ? 1 : SMOOTHNESS);
-  yearsSequence.totalProgress(scrollPercentSmooth.value, true);
+  scrollPercentSmooth += (scrollPercent.value - scrollPercentSmooth) * ((scrollPercent.value > 0.99 || scrollPercent.value < 0.01) ? 1 : SMOOTHNESS);
+  // hijriScrollPercentSmooth += (scrollPercent.value - hijriScrollPercentSmooth) * ((scrollPercent.value > 0.99 || scrollPercent.value < 0.01) ? 1 : SMOOTHNESS);
+  yearsSequence.totalProgress(scrollPercentSmooth, true);
+  // hijriYearsSequence.totalProgress(hijriScrollPercentSmooth, true);
 });
 
 onMounted(async () => {
@@ -122,9 +134,9 @@ function onDayMouseLeave() {
   if (hoverTimeout) clearTimeout(hoverTimeout);
 }
 
-function onScroll() {
-  if (!recycleContainer.value) return;
-  scrollLeft.value = recycleContainer.value.$_lastUpdateScrollPosition;
+async function onScroll() {
+  if (!recycleContainer.value || !recycleScroller.value) return;
+  scrollLeft.value = recycleScroller.value.scrollLeft;
   if (scrollLeft.value > scrollWidth.value - RANGE && scrollFlag) {
     scrollFlag = false;
     addOneYear();
@@ -163,8 +175,8 @@ function onDayClick(d: IDay) {
 
 function scrollOneYear(year: number, left: boolean) {
   if (!recycleContainer.value) return;
-  const shift = daysInYear(year) * (daySize + dayGap) - dayGap;
-  recycleContainer.value.scrollToPosition(left ? recycleContainer.value.$_lastUpdateScrollPosition - shift : recycleContainer.value.$_lastUpdateScrollPosition + shift)
+  const shift = (daysInYear(year) * (daySize + dayGap) - dayGap) * (left ? -1 : 1);
+  recycleContainer.value.scrollToPosition(recycleContainer.value.$_lastUpdateScrollPosition + shift)
 }
 
 function daysInYear(year: number) {
@@ -192,7 +204,7 @@ function defineYearAnimation() {
 }
 
 function getActiveYear(firstYear: number, secondYear: number, thirdYear: number): number {
-  if (0 <= firstYear && firstYear <= 1) return firstYear; 
+  if (0 <= firstYear && firstYear <= 1) return firstYear;
   if (0 <= secondYear && secondYear <= 1) return secondYear;
   return thirdYear;
 }
@@ -206,7 +218,7 @@ function changeActiveYear(firstYear: number, secondYear: number, thirdYear: numb
     updatedActiveYear = years[1];
   }
   if (updatedActiveYear !== activeYear.value) {
-    if(displayYearTimeout) clearTimeout(displayYearTimeout);
+    if (displayYearTimeout) clearTimeout(displayYearTimeout);
     displayYearTimeout = setTimeout(() => displayedYear.value = updatedActiveYear, 100)
   }
   activeYear.value = updatedActiveYear;
@@ -266,8 +278,7 @@ requestAnimationFrame(handleAnimationFrame);
       </RecycleScroller>
     </main>
     <footer>
-      <h1> {{ hijriYears }} </h1>
+      <h1 class="hijri-year year"> {{ displayedYear }} </h1>
     </footer>
   </div>
-
 </template>
