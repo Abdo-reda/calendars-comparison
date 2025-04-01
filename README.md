@@ -1,33 +1,14 @@
-# calendars
+# Days
 
-This template should help get you started developing with Vue 3 in Vite.
+Just a random website I made while I am bored. 
 
-## Recommended IDE Setup
+I enjoyed making it look pretty and adding animations and making sure its "optimized" or at least runs good enough.
 
-[VSCode](https://code.visualstudio.com/) + [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur).
+Its suppose to be educational ... Talking about the different date systems and including different tips here and there ... I will do that later though ...
 
-## Type Support for `.vue` Imports in TS
+# Screenshot
 
-TypeScript cannot handle type information for `.vue` imports by default, so we replace the `tsc` CLI with `vue-tsc` for type checking. In editors, we need [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) to make the TypeScript language service aware of `.vue` types.
+![screenshot light](./resources/screenshot-light.PNG)
 
-## Customize configuration
 
-See [Vite Configuration Reference](https://vite.dev/config/).
-
-## Project Setup
-
-```sh
-npm install
-```
-
-### Compile and Hot-Reload for Development
-
-```sh
-npm run dev
-```
-
-### Type-Check, Compile and Minify for Production
-
-```sh
-npm run build
-```
+![screenshot dark](./resources/screenshot-dark.PNG)
