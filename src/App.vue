@@ -3,10 +3,12 @@ import { computed, nextTick, onMounted, reactive, ref, useTemplateRef } from 'vu
 import { gsap } from "gsap";
 import type { ICalendarDay, IDay } from './core/interfaces/dayInterface';
 import type { IRecycleScroller } from './core/interfaces/recycleScrollerInterface';
-import { createHijriDay, createMiladyDay, hijriPartsFormatter } from './core/utilities/dateUtil';
+import { createHijriDay, createMiladyDay, getHijriDateParts, hijiriLocaleFormatterDefault, hijriPartsFormatter, miladyLocaleFormatterDefault } from './core/utilities/dateUtil';
 import { useMouse } from './core/composables/useMouse';
 import { usePanMouse } from './core/composables/usePanMouse';
 import { useTheme } from './core/composables/useTheme';
+
+//---------- The following code is really shitty and bad. But it works and its mine ... so fuck it!
 
 //TODO:
 //- go to year
@@ -15,10 +17,12 @@ import { useTheme } from './core/composables/useTheme';
 //- ramadan twice?
 //- year gaps (blocks) and dividers background colors.
 //- grap and grabbing cursor to move around
+//- add easter eggs
 
 let copiedTimeout: number | null = null;
 let hoverTimeout: number | null = null;
 let displayYearTimeout: number | null = null;
+let hijriDisplayYearTimeout: number | null = null;
 let recycleScroller = ref<HTMLDivElement | null>(null);
 let scrollFlag = true;
 let scrollPercentSmooth = 0;
@@ -46,11 +50,12 @@ const tooltipY = ref<number>(0);
 const scrollLeft = ref<number>(0);
 const years = reactive([currentYear.value - 1, currentYear.value, currentYear.value + 1]);
 const displayedYear = ref<number>(years[1]);
+const displayedHijriYear = ref<number>(years[1]);
 const activeYear = ref<number>(years[1]);
+const activeHijriYear = ref<number>(years[1]);
 
 const yearDaysWidth = computed(() => years.map(y => daysInYear(y) * (daySize + dayGap) - dayGap));
 const scrollWidth = computed(() => days.value.length * (daySize + dayGap))
-const hijriYears = computed(() => years.map(y => hijriPartsFormatter.formatToParts(new Date(y, 0, 1)).find(part => part.type === 'year')!.value))
 
 const days = computed<ICalendarDay[]>(() => {
   const yearDays: ICalendarDay[] = [];
@@ -81,7 +86,7 @@ const tooltipPos = computed(() => ({
 const scrollSpeed = computed(() => (mouseXRatio.value - 0.5) / 0.5);
 const scrollSpeedMapped = computed(() => Math.exp(Math.abs(3 * scrollSpeed.value)) * scrollSpeed.value);
 const scrollPercent = computed(() => {
-  const lastMonthDays = 31 * (daySize + dayGap);
+  const lastMonthDays = 30 * (daySize + dayGap);
   const shiftedScroll = scrollLeft.value + lastMonthDays;
   const firstYearPercent = (shiftedScroll) / (yearDaysWidth.value[0]);
   const midYearPercent = (shiftedScroll - yearDaysWidth.value[0]) / (yearDaysWidth.value[1]);
@@ -89,21 +94,39 @@ const scrollPercent = computed(() => {
   changeActiveYear(firstYearPercent, midYearPercent, lastYearPercent);
   return getActiveYear(firstYearPercent, midYearPercent, lastYearPercent);
 });
-// const hijirScrollPercent = computed(() => {
-//   const lastMonthDays = 29.5 * (daySize + dayGap);
-//   const shiftedScroll = scrollLeft.value + lastMonthDays;
-//   const firstYearPercent = (shiftedScroll) / (yearDaysWidth.value[0]);
-//   const midYearPercent = (shiftedScroll - yearDaysWidth.value[0]) / (yearDaysWidth.value[1]);
-//   const lastYearPercent = (shiftedScroll - yearDaysWidth.value[0] - yearDaysWidth.value[1]) / (yearDaysWidth.value[2]);
-//   changeActiveYear(firstYearPercent, midYearPercent, lastYearPercent);
-//   return getActiveYear(firstYearPercent, midYearPercent, lastYearPercent);
-// });
+const activeMiladyDate = computed(() => {
+  const yearStart = new Date(activeYear.value, 0, 1);
+  const yearEnd = new Date(activeYear.value, 11, 31);
+  return new Date(yearStart.getTime() + scrollPercent.value * (yearEnd.getTime() - yearStart.getTime()));
+});
+const hijriScrollPercent = computed(() => {
+  const hijriDate = getHijriDateParts(activeMiladyDate.value);
+
+  if (hijriDate.year !== activeHijriYear.value) {
+    if (hijriDisplayYearTimeout) clearTimeout(hijriDisplayYearTimeout);
+    hijriDisplayYearTimeout = setTimeout(() => displayedHijriYear.value  = hijriDate.year, 100)
+  }
+  activeHijriYear.value = hijriDate.year;
+  
+  const fullCycles = Math.floor((hijriDate.month - 1) / 2); 
+  const remainingMonths = (hijriDate.month - 1) % 2;      
+  const daysPassed = 
+    (fullCycles * 59) +      
+    (remainingMonths * 30) + 
+    (hijriDate.day - 1);            
+
+  const percent = daysPassed / daysInYear(displayedYear.value);   
+  if (percent > 0.97) return 1;
+  return percent/0.97;
+})
+const displayCurrentMildayDay = computed(() => miladyLocaleFormatterDefault.format(activeMiladyDate.value));
+const displayCurrentHijriDay = computed(() => hijiriLocaleFormatterDefault.format(activeMiladyDate.value));
 
 gsap.ticker.add(() => {
   scrollPercentSmooth += (scrollPercent.value - scrollPercentSmooth) * ((scrollPercent.value > 0.99 || scrollPercent.value < 0.01) ? 1 : SMOOTHNESS);
-  // hijriScrollPercentSmooth += (scrollPercent.value - hijriScrollPercentSmooth) * ((scrollPercent.value > 0.99 || scrollPercent.value < 0.01) ? 1 : SMOOTHNESS);
+  hijriScrollPercentSmooth += (hijriScrollPercent.value - hijriScrollPercentSmooth) * ((hijriScrollPercent.value > 0.99 || hijriScrollPercent.value < 0.01) ? 1 : SMOOTHNESS);
   yearsSequence.totalProgress(scrollPercentSmooth, true);
-  // hijriYearsSequence.totalProgress(hijriScrollPercentSmooth, true);
+  hijriYearsSequence.totalProgress(hijriScrollPercentSmooth, true);
 });
 
 onMounted(async () => {
@@ -191,8 +214,7 @@ function defineYearAnimation() {
       ease: "power1.inOut",
       duration: 0.1
     }
-  )
-    .to(".milady-year",
+  ).to(".milady-year",
       {
         scale: 0,
         opacity: 0,
@@ -200,7 +222,24 @@ function defineYearAnimation() {
         duration: 0.1
       },
       0.9
-    );
+  );
+
+  hijriYearsSequence.to(".hijri-year",
+    {
+      x: "64px",
+      opacity: 1,
+      ease: "power1.inOut",
+      duration: 0.1
+    }
+  ).to(".hijri-year",
+      {
+        scale: 0,
+        opacity: 0,
+        ease: "power1.inOut",
+        duration: 0.1
+      },
+      0.9
+  );
 }
 
 function getActiveYear(firstYear: number, secondYear: number, thirdYear: number): number {
@@ -247,6 +286,7 @@ requestAnimationFrame(handleAnimationFrame);
       <h2> Double Click To Switch Themes </h2>
     </div>
     <header>
+      <p class="current-day-label"> {{ displayCurrentMildayDay}} </p>
       <h1 class="milady-year year"> {{ displayedYear }} </h1>
     </header>
     <main class="main-container">
@@ -278,7 +318,8 @@ requestAnimationFrame(handleAnimationFrame);
       </RecycleScroller>
     </main>
     <footer>
-      <h1 class="hijri-year year"> {{ displayedYear }} </h1>
+      <h1 class="hijri-year year"> {{ displayedHijriYear }} </h1>
+      <p class="current-day-label"> {{ displayCurrentHijriDay}} </p>
     </footer>
   </div>
 </template>

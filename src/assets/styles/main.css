@@ -24,7 +24,6 @@ body.light {
   position: absolute;
   right: 20px;
   opacity: 50%;
-  user-select: none;
   text-align: right;
   color: var(--month-title-color);
 }
@@ -66,12 +65,13 @@ body {
   font-family: 'Montserrat', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   height: 100vh;
   margin: 0px;
+  user-select: none;
   transition-property: background-color;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 300ms;
 }
 
-header {
+header, footer {
   width: 100%;
   text-align: left;
 }
@@ -86,10 +86,17 @@ sup {
   opacity: 50%;
 }
 
+.current-day-label {
+  color: var(--main-heading-color);
+  text-align: center;
+  transition-property: color;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 300ms;
+}
+
 .year {
   transform: translateX(100vh);
   opacity: 0;
-  user-select: none;
 }
 
 .days-container {
@@ -105,7 +112,6 @@ sup {
 
 .date-container {
   height: 50%;
-  user-select: none;
 }
 
 .date-container-milady {
