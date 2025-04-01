@@ -1,39 +1,26 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, reactive, ref, useTemplateRef, customRef } from 'vue';
+import { computed, nextTick, onMounted, reactive, ref, useTemplateRef } from 'vue';
 import { gsap } from "gsap";
 import type { ICalendarDay, IDay } from './core/interfaces/dayInterface';
 import type { IRecycleScroller } from './core/interfaces/recycleScrollerInterface';
 import { createHijriDay, createMiladyDay, hijriPartsFormatter } from './core/utilities/dateUtil';
 import { useMouse } from './core/composables/useMouse';
+import { usePanMouse } from './core/composables/usePanMouse';
+import { useDragScroll } from './core/composables/useDragScroll';
+import { useTheme } from './core/composables/useTheme';
 
 //TODO:
-//- fix bug and glitching of the year.
-//- 
-
-// function debouncedRef<T>(value: T, delay = 50) {
-//   let timeoutId: number|null = null;
-//   return customRef((track, trigger) => ({
-//     get() {
-//       track();
-//       return value;
-//     },
-//     set(newValue) {
-//       if (newValue !== value) {
-//         if (timeoutId) clearTimeout(timeoutId);
-//         timeoutId = setTimeout(() => {
-//           value = newValue; // Update the stabilized value
-//           trigger(); // Notify Vue
-//         }, delay);
-//       }
-//     }
-//   }));
-// }
+//- light mode, (dark blue and milky yellow white)
+//- hijri date years animation
+//- ramadan twice?
+//- year gaps (blocks) and dividers background colors.
+//- grap and grabbing cursor to move around
 
 let copiedTimeout: number | null = null;
 let hoverTimeout: number | null = null;
 let displayYearTimeout: number | null = null;
+let recycleScroller = ref<HTMLDivElement | null>(null);
 let scrollFlag = true;
-let recycleScroller: HTMLDivElement | null = null;
 const SMOOTHNESS = 0.05;
 const SCROLL_SPEED_FACTOR = 8;
 const daySize = 24;
@@ -42,6 +29,8 @@ const RANGE = 4096;
 const yearsSequence = gsap.timeline({ paused: true });
 const recycleContainer = useTemplateRef<IRecycleScroller>('recycle-container');
 const { mouseXRatio } = useMouse();
+const { isPanActive } = usePanMouse();
+useTheme();
 
 const currentYear = ref(new Date().getUTCFullYear())
 const activeMonth = ref<string | null>(null);
@@ -71,7 +60,7 @@ const days = computed<ICalendarDay[]>(() => {
     const currentYearDate = new Date(y, 0, 1);
     for (let day = 1; day <= daysInYear(y); day++) {
       const miladyDay = createMiladyDay(currentYearDate);
-      const hijriDay = createHijriDay(currentYearDate); //createHijriDay(currentYearDate);
+      const hijriDay = createHijriDay(currentYearDate);
 
       yearDays.push({
         id: miladyDay.short,
@@ -106,8 +95,8 @@ gsap.ticker.add(() => {
 });
 
 onMounted(async () => {
+  recycleScroller.value = document.querySelector('.vue-recycle-scroller') as HTMLDivElement;
   defineYearAnimation();
-  recycleScroller = document.getElementsByClassName('vue-recycle-scroller').item(0) as HTMLDivElement;
   await nextTick();
   await nextTick();
   scrollOneYear(years[0], false);
@@ -132,7 +121,6 @@ function onDayMouseLeave() {
   activeMonth.value = null;
   if (hoverTimeout) clearTimeout(hoverTimeout);
 }
-
 
 function onScroll() {
   if (!recycleContainer.value) return;
@@ -224,15 +212,14 @@ function changeActiveYear(firstYear: number, secondYear: number, thirdYear: numb
   activeYear.value = updatedActiveYear;
 }
 
-
 function handleAnimationFrame() {
   scrollElement();
   requestAnimationFrame(handleAnimationFrame);
 }
 
 function scrollElement() {
-  if (!recycleScroller) return;
-  recycleScroller.scrollBy({
+  if (!recycleScroller.value || !isPanActive.value) return;
+  recycleScroller.value.scrollBy({
     left: SCROLL_SPEED_FACTOR * scrollSpeedMapped.value,
   });
 }
@@ -243,12 +230,12 @@ requestAnimationFrame(handleAnimationFrame);
 
 <template>
   <div class="body-wrapper">
+    <div class="hint">
+      <h2> Right Click To Pan </h2>
+      <h2> Double Click To Switch Themes </h2>
+    </div>
     <header>
-      <!-- <h1> {{ years[1] }} </h1> -->
       <h1 class="milady-year year"> {{ displayedYear }} </h1>
-      <p style="color: white"> {{ scrollPercent }}% // {{ scrollPercentSmooth }}
-      </p>
-      <!-- // {{ scrollWidth }} // {{ scrollLeft }} // {{ daysInYear(years[0]) * (daySize + dayGap) - dayGap }} //{{ daysInYear(years[1]) * (daySize + dayGap) - dayGap }} -->
     </header>
     <main class="main-container">
       <VTooltip :triggers="[]" :placement="isActiveDateHijri ? 'bottom' : 'top'" :shown="showTooltip" :autoHide="false"
