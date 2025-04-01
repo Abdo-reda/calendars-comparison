@@ -29,7 +29,8 @@ export const hijriNumericPartsFormatter = new Intl.DateTimeFormat(ISLAMIC_LOCALE
 
 const currentYear = new Date().getUTCFullYear();
 const miladyMonthNames = Array.from({ length: 12 }, (_, i) => miladyMonthFormatter.format(new Date(currentYear, i, 1)));
-const hijriMonthNames = Array.from({ length: 12 }, (_, i) => hijriMonthFormatter.format(new Date(currentYear, i, 1)));
+const hijriMonthNames = Array.from({ length: 12 }, (_, i) => hijriMonthFormatter.format(new Date(641, i, 1)));
+console.log('---', hijriMonthNames)
 
 const daysInMonth = (year: number, month: number) => new Date(year, month, 0).getDate();
 
@@ -62,7 +63,7 @@ export function createHijriDay(date: Date): IDay | null {
   return {
     locale: hijiriLocaleFormatter.format(date),
     short: `${hijriDate.year}-${hijriDate.month}-${hijriDate.day}`,
-    month: hijriMonthNames[date.getMonth()],
+    month: hijriMonthNames[parseInt(hijriDate.month)-1],
     // monthDays: 
     isStartOfMonth: +hijriDate.day === 1,
     isStartOfWeek: date.getDay() === 0,

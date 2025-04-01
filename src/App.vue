@@ -13,9 +13,6 @@ import { useGoToValue } from './core/composables/useGoToValue';
 
 //TODO:
 //- explanations
-//- ramadan twice?
-//- add easter eggs
-//- beginning dates
 
 let copiedTimeout: number | null = null;
 let hoverTimeout: number | null = null;
@@ -24,6 +21,10 @@ let recycleScroller = ref<HTMLDivElement | null>(null);
 let scrollFlag = true;
 let scrollPercentSmooth = 0;
 let hijriScrollPercentSmooth = 0;
+const EASTER_DATES = [
+  new Date('2001-02-23').toLocaleDateString(),
+  new Date('2003-04-10').toLocaleDateString(),
+]
 const SMOOTHNESS = 0.05;
 const SCROLL_SPEED_FACTOR = 8;
 const daySize = 24;
@@ -39,8 +40,7 @@ const { inProgress, restart } = useGoToValue(handleScrollBy);
 useTheme();
 
 const inputDate = ref('');
-// const currentYear = ref(new Date().getUTCFullYear())
-const currentYear = ref(10);
+const currentYear = ref(new Date().getUTCFullYear())
 const activeMonth = ref<string | null>(null);
 const activeDate = ref<string | null>();
 const isActiveDateHijri = ref<boolean>(false);
@@ -191,6 +191,7 @@ function addOneYear() {
 
 function removeOneYear() {
   const lastYear = years[years.length - 1];
+  if (years[0] <= 1) return;
   years.pop();
   years.unshift(years[0] - 1);
   scrollOneYear(lastYear, false);
@@ -342,7 +343,7 @@ requestAnimationFrame(handleAnimationFrame);
         {{ item.miladyDay.month }} </p>
           <div @click="onDayClick(item.miladyDay)" @mouseenter="onDayMouseEnter(false, item.miladyDay, $event)"
             @mouseleave="onDayMouseLeave()" class="day"
-            :class="{ 'day-first-month': item.miladyDay.isStartOfMonth, 'day-normal': !item.miladyDay.isStartOfMonth }">
+            :class="{ 'day-first-month': item.miladyDay.isStartOfMonth, 'day-normal': !item.miladyDay.isStartOfMonth, 'day-easter': EASTER_DATES.includes(item.miladyDay.locale) }">
           </div>
         </div>
         <div class="date-container" v-if="item.hijriDay">
@@ -350,7 +351,7 @@ requestAnimationFrame(handleAnimationFrame);
             v-if="item.hijriDay.isStartOfMonth"> {{ item.hijriDay.month }} </p>
           <div @click="onDayClick(item.hijriDay)" @mouseenter="onDayMouseEnter(true, item.hijriDay, $event)"
             @mouseleave="onDayMouseLeave()" class="day"
-            :class="{ 'day-first-month': item.hijriDay.isStartOfMonth, 'day-normal': !item.hijriDay.isStartOfMonth }">
+            :class="{ 'day-first-month': item.hijriDay.isStartOfMonth, 'day-normal': !item.hijriDay.isStartOfMonth, 'day-easter': EASTER_DATES.includes(item.miladyDay.locale) }">
           </div>
         </div>
       </RecycleScroller>

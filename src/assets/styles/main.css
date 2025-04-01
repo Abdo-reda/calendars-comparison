@@ -7,6 +7,8 @@ body.dark {
   --day-month-hover-color: oklch(0.586 0.253 17.585);
   --day-color: oklch(0.439 0 0);
   --day-hover-color: oklch(0.556 0 0);
+  --day-easter-color: oklch(0.438 0.218 303.724);
+  --day-easter-hover-color: oklch(0.558 0.288 302.321);
 }
 
 body.light {
@@ -18,6 +20,8 @@ body.light {
   --day-month-hover-color: oklch(0.372 0.044 257.287);
   --day-color: oklch(0.709 0.01 56.259);
   --day-hover-color: oklch(0.556 0 0);
+  --day-easter-color: oklch(0.438 0.218 303.724);
+  --day-easter-hover-color: oklch(0.381 0.176 304.987);
 }
 
 
@@ -161,6 +165,14 @@ sup {
 
 .day-normal:hover {
   background-color: var(--day-hover-color);
+}
+
+.day-easter {
+  background-color: var(--day-easter-color);
+}
+
+.day-easter:hover {
+  background-color: var(--day-easter-hover-color);
 }
 
 /* .day-first-week {
