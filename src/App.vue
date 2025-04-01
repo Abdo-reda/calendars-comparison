@@ -1,28 +1,25 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, reactive, ref, useTemplateRef } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, reactive, ref, useTemplateRef } from 'vue';
 import { gsap } from "gsap";
 import type { ICalendarDay, IDay } from './core/interfaces/dayInterface';
 import type { IRecycleScroller } from './core/interfaces/recycleScrollerInterface';
-import { createHijriDay, createMiladyDay, getHijriDateParts, hijiriLocaleFormatterDefault, hijriPartsFormatter, miladyLocaleFormatterDefault } from './core/utilities/dateUtil';
+import { createHijriDay, createMiladyDay, getHijriDateParts, hijiriLocaleFormatterDefault, miladyLocaleFormatterDefault } from './core/utilities/dateUtil';
 import { useMouse } from './core/composables/useMouse';
 import { usePanMouse } from './core/composables/usePanMouse';
 import { useTheme } from './core/composables/useTheme';
+import { useGoToValue } from './core/composables/useGoToValue';
 
 //---------- The following code is really shitty and bad. But it works and its mine ... so fuck it!
 
 //TODO:
-//- go to year
 //- explanations
-//- hijri date years animation
 //- ramadan twice?
-//- year gaps (blocks) and dividers background colors.
-//- grap and grabbing cursor to move around
 //- add easter eggs
+//- beginning dates
 
 let copiedTimeout: number | null = null;
 let hoverTimeout: number | null = null;
-let displayYearTimeout: number | null = null;
-let hijriDisplayYearTimeout: number | null = null;
+let focusTimeout: number | null = null;
 let recycleScroller = ref<HTMLDivElement | null>(null);
 let scrollFlag = true;
 let scrollPercentSmooth = 0;
@@ -35,11 +32,15 @@ const RANGE = 4096;
 const yearsSequence = gsap.timeline({ paused: true });
 const hijriYearsSequence = gsap.timeline({ paused: true });
 const recycleContainer = useTemplateRef<IRecycleScroller>('recycle-container');
+const dateInput = useTemplateRef<HTMLInputElement>('date-input');
 const { mouseXRatio } = useMouse();
 const { isPanActive } = usePanMouse();
+const { inProgress, restart } = useGoToValue(handleScrollBy);
 useTheme();
 
-const currentYear = ref(new Date().getUTCFullYear())
+const inputDate = ref('');
+// const currentYear = ref(new Date().getUTCFullYear())
+const currentYear = ref(10);
 const activeMonth = ref<string | null>(null);
 const activeDate = ref<string | null>();
 const isActiveDateHijri = ref<boolean>(false);
@@ -49,8 +50,6 @@ const tooltipX = ref<number>(0);
 const tooltipY = ref<number>(0);
 const scrollLeft = ref<number>(0);
 const years = reactive([currentYear.value - 1, currentYear.value, currentYear.value + 1]);
-const displayedYear = ref<number>(years[1]);
-const displayedHijriYear = ref<number>(years[1]);
 const activeYear = ref<number>(years[1]);
 const activeHijriYear = ref<number>(years[1]);
 
@@ -62,15 +61,18 @@ const days = computed<ICalendarDay[]>(() => {
 
   for (const y of years) {
     const currentYearDate = new Date(y, 0, 1);
+    if (y > 0 && y < 100) currentYearDate.setFullYear(y);
+    if (y <= 0) continue;
     for (let day = 1; day <= daysInYear(y); day++) {
       const miladyDay = createMiladyDay(currentYearDate);
       const hijriDay = createHijriDay(currentYearDate);
-
-      yearDays.push({
-        id: miladyDay.short,
-        miladyDay,
-        hijriDay,
-      });
+      if (miladyDay) {
+        yearDays.push({
+          id: miladyDay.short,
+          miladyDay,
+          hijriDay,
+        });
+      }
       currentYearDate.setDate(currentYearDate.getDate() + 1);
     }
   }
@@ -96,28 +98,27 @@ const scrollPercent = computed(() => {
 });
 const activeMiladyDate = computed(() => {
   const yearStart = new Date(activeYear.value, 0, 1);
+  yearStart.setFullYear(activeYear.value);
   const yearEnd = new Date(activeYear.value, 11, 31);
-  return new Date(yearStart.getTime() + scrollPercent.value * (yearEnd.getTime() - yearStart.getTime()));
+  yearEnd.setFullYear(activeYear.value);
+  const date = new Date(yearStart.getTime() + scrollPercent.value * (yearEnd.getTime() - yearStart.getTime()));
+  date.setFullYear(activeYear.value);
+  return date;
 });
 const hijriScrollPercent = computed(() => {
   const hijriDate = getHijriDateParts(activeMiladyDate.value);
 
-  if (hijriDate.year !== activeHijriYear.value) {
-    if (hijriDisplayYearTimeout) clearTimeout(hijriDisplayYearTimeout);
-    hijriDisplayYearTimeout = setTimeout(() => displayedHijriYear.value  = hijriDate.year, 100)
-  }
   activeHijriYear.value = hijriDate.year;
-  
-  const fullCycles = Math.floor((hijriDate.month - 1) / 2); 
-  const remainingMonths = (hijriDate.month - 1) % 2;      
-  const daysPassed = 
-    (fullCycles * 59) +      
-    (remainingMonths * 30) + 
-    (hijriDate.day - 1);            
+  const fullCycles = Math.floor((hijriDate.month - 1) / 2);
+  const remainingMonths = (hijriDate.month - 1) % 2;
+  const daysPassed =
+    (fullCycles * 59) +
+    (remainingMonths * 30) +
+    (hijriDate.day - 1);
 
-  const percent = daysPassed / daysInYear(displayedYear.value);   
+  const percent = daysPassed / daysInYear(activeYear.value);
   if (percent > 0.97) return 1;
-  return percent/0.97;
+  return percent / 0.97;
 })
 const displayCurrentMildayDay = computed(() => miladyLocaleFormatterDefault.format(activeMiladyDate.value));
 const displayCurrentHijriDay = computed(() => hijiriLocaleFormatterDefault.format(activeMiladyDate.value));
@@ -130,11 +131,20 @@ gsap.ticker.add(() => {
 });
 
 onMounted(async () => {
+  document.addEventListener("visibilitychange", handleVisiblity);
+  document.addEventListener("focus", handleVisiblity);
+  document.addEventListener("keydown", handleGoToDate);
   recycleScroller.value = document.querySelector('.vue-recycle-scroller') as HTMLDivElement;
   defineYearAnimation();
   await nextTick();
   await nextTick();
   scrollOneYear(years[0], false);
+})
+
+onUnmounted(() => {
+  document.removeEventListener("visibilitychange", handleVisiblity);
+  document.removeEventListener("focus", handleVisiblity);
+  document.removeEventListener("keydown", handleGoToDate);
 })
 
 function onDayMouseEnter(isHijri: boolean, day: IDay, event: Event) {
@@ -215,13 +225,13 @@ function defineYearAnimation() {
       duration: 0.1
     }
   ).to(".milady-year",
-      {
-        scale: 0,
-        opacity: 0,
-        ease: "power1.inOut",
-        duration: 0.1
-      },
-      0.9
+    {
+      scale: 0,
+      opacity: 0,
+      ease: "power1.inOut",
+      duration: 0.1
+    },
+    0.9
   );
 
   hijriYearsSequence.to(".hijri-year",
@@ -232,13 +242,13 @@ function defineYearAnimation() {
       duration: 0.1
     }
   ).to(".hijri-year",
-      {
-        scale: 0,
-        opacity: 0,
-        ease: "power1.inOut",
-        duration: 0.1
-      },
-      0.9
+    {
+      scale: 0,
+      opacity: 0,
+      ease: "power1.inOut",
+      duration: 0.1
+    },
+    0.9
   );
 }
 
@@ -256,10 +266,6 @@ function changeActiveYear(firstYear: number, secondYear: number, thirdYear: numb
   if (0 <= secondYear && secondYear <= 1) {
     updatedActiveYear = years[1];
   }
-  if (updatedActiveYear !== activeYear.value) {
-    if (displayYearTimeout) clearTimeout(displayYearTimeout);
-    displayYearTimeout = setTimeout(() => displayedYear.value = updatedActiveYear, 100)
-  }
   activeYear.value = updatedActiveYear;
 }
 
@@ -269,9 +275,40 @@ function handleAnimationFrame() {
 }
 
 function scrollElement() {
-  if (!recycleScroller.value || !isPanActive.value) return;
+  if (!recycleScroller.value || !isPanActive.value || inProgress.value) return;
   recycleScroller.value.scrollBy({
     left: SCROLL_SPEED_FACTOR * scrollSpeedMapped.value,
+  });
+}
+
+function handleVisiblity() {
+  if (!document.hidden) dateInput.value?.focus();
+}
+
+function handleBlur(event: FocusEvent) {
+  event.preventDefault();
+  if (focusTimeout) return;
+  focusTimeout = setTimeout(() => {
+    dateInput.value?.focus();
+    focusTimeout = null;
+  }, 50);
+}
+
+function handleGoToDate(event: KeyboardEvent) {
+  if (event.code === "Enter") {
+    const goToDate = new Date(inputDate.value); 
+    if (isNaN(goToDate.getTime())) return;
+    const daysToGo = (goToDate.getTime() - activeMiladyDate.value.getTime())  / (1000 * 60 * 60 * 24);
+    const distanceToTravel = daysToGo * (daySize + dayGap);
+    restart(distanceToTravel);
+    inputDate.value = '';
+  }
+}
+
+function handleScrollBy(deltaValue: number) {
+  if (!recycleScroller.value) return;
+  recycleScroller.value.scrollBy({
+    left: deltaValue,
   });
 }
 
@@ -284,10 +321,11 @@ requestAnimationFrame(handleAnimationFrame);
     <div class="hint">
       <h2> Right Click To Pan </h2>
       <h2> Double Click To Switch Themes </h2>
+      <h2> Type a Date and Enter to Traverse </h2>
     </div>
     <header>
-      <p class="current-day-label"> {{ displayCurrentMildayDay}} </p>
-      <h1 class="milady-year year"> {{ displayedYear }} </h1>
+      <p class="current-day-label"> {{ displayCurrentMildayDay }} </p>
+      <h1 class="milady-year year"> {{ activeYear }} </h1>
     </header>
     <main class="main-container">
       <VTooltip :triggers="[]" :placement="isActiveDateHijri ? 'bottom' : 'top'" :shown="showTooltip" :autoHide="false"
@@ -301,7 +339,7 @@ requestAnimationFrame(handleAnimationFrame);
         <div class="date-container date-container-milady">
           <p class="month-title month-title-milady"
             :class="{ 'month-title-hover': activeMonth === item.miladyDay.month }" v-if="item.miladyDay.isStartOfMonth">
-            {{ item.miladyDay.month }} </p>
+        {{ item.miladyDay.month }} </p>
           <div @click="onDayClick(item.miladyDay)" @mouseenter="onDayMouseEnter(false, item.miladyDay, $event)"
             @mouseleave="onDayMouseLeave()" class="day"
             :class="{ 'day-first-month': item.miladyDay.isStartOfMonth, 'day-normal': !item.miladyDay.isStartOfMonth }">
@@ -318,8 +356,10 @@ requestAnimationFrame(handleAnimationFrame);
       </RecycleScroller>
     </main>
     <footer>
-      <h1 class="hijri-year year"> {{ displayedHijriYear }} </h1>
-      <p class="current-day-label"> {{ displayCurrentHijriDay}} </p>
+      <h1 class="hijri-year year"> {{ (activeHijriYear > 0) ? activeHijriYear : '-' }} </h1>
+      <p class="current-day-label"> {{ (activeHijriYear > 0) ? displayCurrentHijriDay : '-' }} </p>
     </footer>
+    <input class="date-input" ref="date-input" :maxlength="10" @blur="handleBlur" v-model="inputDate" autofocus/>
+    <p class="go-to-date"> {{ inputDate }}</p>
   </div>
 </template>

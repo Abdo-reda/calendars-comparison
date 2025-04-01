@@ -4,7 +4,7 @@ body.dark {
   --month-title-color: oklch(0.708 0 0);
   --month-title-hover-color: oklch(0.985 0 0);
   --day-month-color: oklch(0.455 0.188 13.697);
-  --day-month-hover-color:  oklch(0.586 0.253 17.585);
+  --day-month-hover-color: oklch(0.586 0.253 17.585);
   --day-color: oklch(0.439 0 0);
   --day-hover-color: oklch(0.556 0 0);
 }
@@ -20,13 +20,6 @@ body.light {
   --day-hover-color: oklch(0.556 0 0);
 }
 
-.hint {
-  position: absolute;
-  right: 20px;
-  opacity: 50%;
-  text-align: right;
-  color: var(--month-title-color);
-}
 
 .montserrat-bold {
   font-family: "Montserrat", sans-serif;
@@ -37,27 +30,6 @@ body.light {
 
 #app {
   height: 100%;
-}
-
-.body-wrapper {
-  height: 100%;
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: space-between;
-  overflow: hidden;
-}
-
-.main-container {
-  overflow-x: hidden; 
-  position: relative;
-  height: 250px;
-  width: 100%;
-  display: flex;
-  justify-content: center;
-  flex-direction: column;
-  row-gap: 16px;
 }
 
 body {
@@ -71,19 +43,75 @@ body {
   transition-duration: 300ms;
 }
 
-header, footer {
+header,
+footer {
   width: 100%;
   text-align: left;
 }
 
 h1 {
   color: var(--main-heading-color);
-  font-size: 4.5rem;
+  font-size: 6rem;
   width: fit-content;
 }
 
 sup {
   opacity: 50%;
+}
+
+.hint {
+  position: absolute;
+  right: 20px;
+  opacity: 50%;
+  text-align: right;
+  color: var(--month-title-color);
+  transition-property: color;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 300ms;
+}
+
+.go-to-date {
+  color: var(--month-title-color);
+  position: fixed;
+  z-index: -1;
+  opacity: 30%;
+  font-size: 12rem;
+  top: 25%;
+  left: 50%;
+  font-weight: bolder;
+  transform: translate(-50%, -50%);
+  margin: 0;
+  padding: 0;
+  transition-property: color;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 300ms;
+}
+
+.date-input {
+  opacity: 0;
+  position: fixed;
+  z-index: -1;
+}
+
+.body-wrapper {
+  height: 100%;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  overflow: hidden;
+}
+
+.main-container {
+  overflow-x: hidden;
+  position: relative;
+  height: 250px;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  flex-direction: column;
+  row-gap: 16px;
 }
 
 .current-day-label {

@@ -43,7 +43,7 @@ export function getHijriDateParts(date: Date) {
 }
 
 export function createMiladyDay(date: Date): IDay {
-  const year = date.getFullYear();
+  const year = date.getFullYear()
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
   return {
@@ -58,6 +58,7 @@ export function createMiladyDay(date: Date): IDay {
 
 export function createHijriDay(date: Date): IDay | null {
   const hijriDate = Object.fromEntries(hijriPartsFormatter.formatToParts(date).map(({ type, value }) => [type, value]));
+  if (parseInt(hijriDate.year) <= 0) return null; 
   return {
     locale: hijiriLocaleFormatter.format(date),
     short: `${hijriDate.year}-${hijriDate.month}-${hijriDate.day}`,
