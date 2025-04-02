@@ -40,7 +40,6 @@ const { mouseXRatio } = useMouse();
 const { isPanActive } = usePanMouse();
 const { inProgress, restart } = useGoToValue(handleScrollBy);
 const { toggleTheme } = useTheme();
-useTouch(handleDoubleTap, handleSwipe);
 
 const inputDate = ref('');
 const currentYear = ref(new Date().getUTCFullYear())
@@ -325,6 +324,8 @@ function handleSwipe(event: HammerInput) {
 }
 
 requestAnimationFrame(handleAnimationFrame);
+useTouch(recycleScroller, handleDoubleTap, handleSwipe);
+
 
 </script>
 

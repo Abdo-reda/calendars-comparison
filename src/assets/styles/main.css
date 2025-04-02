@@ -69,7 +69,7 @@ sup {
   opacity: 50%;
   text-align: right;
   color: var(--month-title-color);
-  transition-property: color;
+  transition-property: color, opacity;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 300ms;
 }
@@ -229,4 +229,18 @@ sup {
 
 .month-title-hover {
   color: var(--month-title-hover-color);
+}
+
+@media only screen and (max-width: 768px) {
+  .hint {
+    opacity: 0%;
+  }
+
+  h1 {
+    font-size: 4rem;
+  }
+
+  .date-input {
+    display: none;
+  }
 }
