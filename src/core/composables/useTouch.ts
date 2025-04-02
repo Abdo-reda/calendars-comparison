@@ -12,7 +12,6 @@ export function useTouch(element: Ref<HTMLElement|null>, doubleTapHandler: Hamme
         if (element.value)  {
             otherHammerManager = new Hammer(element.value)
             otherHammerManager.on("swipe", swipeHandler);
-            otherHammerManager.off("doubletap", doubleTapHandler)
         }
     }
 
