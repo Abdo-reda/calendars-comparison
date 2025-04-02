@@ -8,6 +8,6 @@ Its suppose to be educational ... Talking about the different date systems and i
 
 # Screenshot
 
-![screenshot light](./resources/screenshot-light.png)
+![screenshot light](./resources/screenshot.png)
 
 ![screenshot dark](./resources/screenshot-dark.png)

@@ -8,11 +8,13 @@ import { useMouse } from './core/composables/useMouse';
 import { usePanMouse } from './core/composables/usePanMouse';
 import { useTheme } from './core/composables/useTheme';
 import { useGoToValue } from './core/composables/useGoToValue';
+import { useTouch } from './core/composables/useTouch';
 
 //---------- The following code is really shitty and bad. But it works and its mine ... so fuck it!
 
 //TODO:
 //- explanations
+//- mobile support
 
 let copiedTimeout: number | null = null;
 let hoverTimeout: number | null = null;
@@ -37,7 +39,8 @@ const dateInput = useTemplateRef<HTMLInputElement>('date-input');
 const { mouseXRatio } = useMouse();
 const { isPanActive } = usePanMouse();
 const { inProgress, restart } = useGoToValue(handleScrollBy);
-useTheme();
+const { toggleTheme } = useTheme();
+useTouch(handleDoubleTap, handleSwipe);
 
 const inputDate = ref('');
 const currentYear = ref(new Date().getUTCFullYear())
@@ -311,6 +314,14 @@ function handleScrollBy(deltaValue: number) {
   recycleScroller.value.scrollBy({
     left: deltaValue,
   });
+}
+
+function handleDoubleTap(_event: HammerInput) {
+  toggleTheme();
+}
+
+function handleSwipe(event: HammerInput) {
+  restart(event.velocityX * event.distance * -1);
 }
 
 requestAnimationFrame(handleAnimationFrame);

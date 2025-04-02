@@ -1,11 +1,11 @@
-import { onMounted, onUnmounted, ref } from "vue"
+import { ref } from "vue"
 
 type TTheme = 'light' | 'dark';
 
 export function useTheme() {
     const currentTheme = ref<TTheme>('light');
 
-    function handleDoubleClick() {
+    function toggleTheme() {
         currentTheme.value = (currentTheme.value === 'light') ? 'dark' : 'light';
         setTheme();
     }
@@ -16,12 +16,8 @@ export function useTheme() {
         document.body.classList.remove(oldTheme);
         document.body.classList.add(newTheme);
     }
+    
+    setTheme();
 
-    onMounted(() => {
-        window.addEventListener('dblclick', handleDoubleClick);
-        setTheme();
-    })
-    onUnmounted(() => window.removeEventListener('dblclick', handleDoubleClick))
-
-    return { currentTheme }
+    return { currentTheme, toggleTheme }
 }

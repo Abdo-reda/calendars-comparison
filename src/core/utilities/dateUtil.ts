@@ -30,7 +30,6 @@ export const hijriNumericPartsFormatter = new Intl.DateTimeFormat(ISLAMIC_LOCALE
 const currentYear = new Date().getUTCFullYear();
 const miladyMonthNames = Array.from({ length: 12 }, (_, i) => miladyMonthFormatter.format(new Date(currentYear, i, 1)));
 const hijriMonthNames = Array.from({ length: 12 }, (_, i) => hijriMonthFormatter.format(new Date(641, i, 1)));
-console.log('---', hijriMonthNames)
 
 const daysInMonth = (year: number, month: number) => new Date(year, month, 0).getDate();
 
