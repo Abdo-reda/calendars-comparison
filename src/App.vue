@@ -14,16 +14,16 @@ import { useTouch } from './core/composables/useTouch';
 
 //TODO:
 //- explanations
-//- mobile support
+//- mobile support 
+//- better mobile support
 
 let copiedTimeout: number | null = null;
 let hoverTimeout: number | null = null;
 let focusTimeout: number | null = null;
-let recycleScroller = ref<HTMLDivElement | null>(null);
 let scrollFlag = true;
 let scrollPercentSmooth = 0;
 let hijriScrollPercentSmooth = 0;
-const EASTER_DATES = [
+const SECRET_DATES = [
   new Date('2001-02-23').toLocaleDateString(),
   new Date('2003-04-10').toLocaleDateString(),
 ]
@@ -41,6 +41,7 @@ const { isPanActive } = usePanMouse();
 const { inProgress, restart } = useGoToValue(handleScrollBy);
 const { toggleTheme } = useTheme();
 
+const recycleScroller = ref<HTMLDivElement | null>(null);
 const inputDate = ref('');
 const currentYear = ref(new Date().getUTCFullYear())
 const activeMonth = ref<string | null>(null);
@@ -355,7 +356,7 @@ useTouch(recycleScroller, handleDoubleTap, handleSwipe);
         {{ item.miladyDay.month }} </p>
           <div @click="onDayClick(item.miladyDay)" @mouseenter="onDayMouseEnter(false, item.miladyDay, $event)"
             @mouseleave="onDayMouseLeave()" class="day"
-            :class="{ 'day-first-month': item.miladyDay.isStartOfMonth, 'day-normal': !item.miladyDay.isStartOfMonth, 'day-easter': EASTER_DATES.includes(item.miladyDay.locale) }">
+            :class="{ 'day-first-month': item.miladyDay.isStartOfMonth, 'day-normal': !item.miladyDay.isStartOfMonth, 'day-secret': SECRET_DATES.includes(item.miladyDay.locale) }">
           </div>
         </div>
         <div class="date-container" v-if="item.hijriDay">
@@ -363,7 +364,7 @@ useTouch(recycleScroller, handleDoubleTap, handleSwipe);
             v-if="item.hijriDay.isStartOfMonth"> {{ item.hijriDay.month }} </p>
           <div @click="onDayClick(item.hijriDay)" @mouseenter="onDayMouseEnter(true, item.hijriDay, $event)"
             @mouseleave="onDayMouseLeave()" class="day"
-            :class="{ 'day-first-month': item.hijriDay.isStartOfMonth, 'day-normal': !item.hijriDay.isStartOfMonth, 'day-easter': EASTER_DATES.includes(item.miladyDay.locale) }">
+            :class="{ 'day-first-month': item.hijriDay.isStartOfMonth, 'day-normal': !item.hijriDay.isStartOfMonth, 'day-secret': SECRET_DATES.includes(item.miladyDay.locale) }">
           </div>
         </div>
       </RecycleScroller>
