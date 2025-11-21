@@ -41,6 +41,8 @@ const { isPanActive } = usePanMouse();
 const { inProgress, restart } = useGoToValue(handleScrollBy);
 const { toggleTheme } = useTheme();
 
+const today = ref(new Date());
+const todayString = ref(new Date().toLocaleDateString())
 const inputDate = ref('');
 const currentYear = ref(new Date().getUTCFullYear())
 const activeMonth = ref<string | null>(null);
@@ -140,7 +142,7 @@ onMounted(async () => {
   defineYearAnimation();
   await nextTick();
   await nextTick();
-  scrollOneYear(years[0], false);
+  scrollToDate(today.value, false);
 })
 
 onUnmounted(() => {
@@ -300,12 +302,20 @@ function handleBlur(event: FocusEvent) {
 function handleGoToDate(event: KeyboardEvent) {
   if (event.code === "Enter") {
     const goToDate = new Date(inputDate.value); 
+    scrollToDate(goToDate);
+    inputDate.value = '';
+  }
+}
+
+function scrollToDate(goToDate: Date, animate: boolean = true) {
     if (isNaN(goToDate.getTime())) return;
     const daysToGo = (goToDate.getTime() - activeMiladyDate.value.getTime())  / (1000 * 60 * 60 * 24);
     const distanceToTravel = daysToGo * (daySize + dayGap);
-    restart(distanceToTravel);
-    inputDate.value = '';
-  }
+    if (animate) {
+        restart(distanceToTravel);
+    } else if (recycleContainer.value) {
+        recycleContainer.value.scrollToPosition(recycleContainer.value.$_lastUpdateScrollPosition + distanceToTravel)
+    }
 }
 
 function handleScrollBy(deltaValue: number) {
@@ -355,7 +365,7 @@ useTouch(recycleScroller, handleDoubleTap, handleSwipe);
         {{ item.miladyDay.month }} </p>
           <div @click="onDayClick(item.miladyDay)" @mouseenter="onDayMouseEnter(false, item.miladyDay, $event)"
             @mouseleave="onDayMouseLeave()" class="day"
-            :class="{ 'day-first-month': item.miladyDay.isStartOfMonth, 'day-normal': !item.miladyDay.isStartOfMonth, 'day-easter': EASTER_DATES.includes(item.miladyDay.locale) }">
+            :class="{ 'day-first-month': item.miladyDay.isStartOfMonth, 'day-normal': !item.miladyDay.isStartOfMonth, 'day-easter': EASTER_DATES.includes(item.miladyDay.locale), 'day-today': item.miladyDay.locale === todayString }">
           </div>
         </div>
         <div class="date-container" v-if="item.hijriDay">
@@ -363,7 +373,7 @@ useTouch(recycleScroller, handleDoubleTap, handleSwipe);
             v-if="item.hijriDay.isStartOfMonth"> {{ item.hijriDay.month }} </p>
           <div @click="onDayClick(item.hijriDay)" @mouseenter="onDayMouseEnter(true, item.hijriDay, $event)"
             @mouseleave="onDayMouseLeave()" class="day"
-            :class="{ 'day-first-month': item.hijriDay.isStartOfMonth, 'day-normal': !item.hijriDay.isStartOfMonth, 'day-easter': EASTER_DATES.includes(item.miladyDay.locale) }">
+            :class="{ 'day-first-month': item.hijriDay.isStartOfMonth, 'day-normal': !item.hijriDay.isStartOfMonth, 'day-easter': EASTER_DATES.includes(item.miladyDay.locale), 'day-today': item.miladyDay.locale === todayString }">
           </div>
         </div>
       </RecycleScroller>
