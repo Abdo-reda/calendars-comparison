@@ -1,29 +1,29 @@
 body.dark {
-  --bg-color: oklch(0.269 0 0);
-  --main-heading-color: oklch(0.923 0.003 48.717);
-  --month-title-color: oklch(0.708 0 0);
-  --month-title-hover-color: oklch(0.985 0 0);
-  --day-month-color: oklch(0.455 0.188 13.697);
-  --day-month-hover-color: oklch(0.586 0.253 17.585);
-  --day-color: oklch(0.439 0 0);
-  --day-hover-color: oklch(0.556 0 0);
-  --day-easter-color: oklch(0.438 0.218 303.724);
-  --day-easter-hover-color: oklch(0.558 0.288 302.321);
+  --bg-color: oklch(26.9% 0 0);
+  --main-heading-color: oklch(92.3% 0.003 48.717);
+  --month-title-color: oklch(70.8% 0 0);
+  --month-title-hover-color: oklch(98.5% 0 0);
+  --day-month-color: oklch(45.5% 0.188 13.697);
+  --day-month-hover-color: oklch(58.6% 0.253 17.585);
+  --day-color: oklch(43.9% 0 0);
+  --day-hover-color: oklch(55.6% 0 0);
+  --day-secret-color: oklch(55.8% 0.288 302.321);
+  --day-secret-hover-color: oklch(62.7% 0.265 303.9);
   --day-today-color: oklch(58.8% 0.158 241.966);
   --day-today-hover-color: oklch(74.6% 0.16 232.661);
 }
 
 body.light {
-  --bg-color: oklch(0.923 0.003 48.717);
-  --main-heading-color: oklch(0.374 0.01 67.558);
-  --month-title-color: oklch(0.708 0 0);
-  --month-title-hover-color: oklch(0.371 0 0);
-  --day-month-color: oklch(0.446 0.043 257.281);
-  --day-month-hover-color: oklch(0.372 0.044 257.287);
-  --day-color: oklch(0.709 0.01 56.259);
-  --day-hover-color: oklch(0.556 0 0);
-  --day-easter-color: oklch(0.438 0.218 303.724);
-  --day-easter-hover-color: oklch(0.381 0.176 304.987);
+  --bg-color: oklch(92.3% 0.003 48.717);
+  --main-heading-color: oklch(37.4% 0.01 67.558);
+  --month-title-color: oklch(70.8% 0 0);
+  --month-title-hover-color: oklch(37.1% 0 0);
+  --day-month-color: oklch(44.6% 0.043 257.281);
+  --day-month-hover-color: oklch(37.2% 0.044 257.287);
+  --day-color: oklch(70.9% 0.01 56.259);
+  --day-hover-color: oklch(55.6% 0 0);
+  --day-secret-color: oklch(43.8% 0.218 303.724);
+  --day-secret-hover-color: oklch(38.1% 0.176 304.987);
   --day-today-color: oklch(68.5% 0.169 237.323);
   --day-today-hover-color: oklch(58.8% 0.158 241.966);
 }
@@ -180,12 +180,20 @@ sup {
   background-color: var(--day-today-hover-color);
 }
 
-.day-easter {
-  background-color: var(--day-easter-color);
+.day-today {
+  background-color: var(--day-today-color);
 }
 
-.day-easter:hover {
-  background-color: var(--day-easter-hover-color);
+.day-today:hover {
+  background-color: var(--day-today-hover-color);
+}
+
+.day-secret {
+  background-color: var(--day-secret-color);
+}
+
+.day-secret:hover {
+  background-color: var(--day-secret-hover-color);
 }
 
 /* .day-first-week {
